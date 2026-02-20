@@ -1,0 +1,28 @@
+{
+  "type": "module",
+  "name": "batch-relay-dapp",
+  "version": "1.0.0",
+  "description": "Gas optimized batch transaction relayer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "compile": "hardhat compile",
+    "deploy": "hardhat run scripts/deploy-v2.js --network ganache",
+    "deploy:helper": "node deploy-helper.js",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "test": "hardhat run test/gas-benchmark.js --network ganache",
+    "test:local": "hardhat run test/gas-benchmark.js --network localhost"
+  },
+  "dependencies": {
+    "@nomicfoundation/hardhat-ethers": "^4.0.4",
+    "@openzeppelin/contracts": "^5.4.0",
+    "dotenv": "^16.3.1",
+    "ethers": "^6.7.1",
+    "express": "^4.18.2"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-verify": "^3.0.10",
+    "hardhat": "^3.1.8"
+  }
+}

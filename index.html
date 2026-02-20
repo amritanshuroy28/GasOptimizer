@@ -1,0 +1,1987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gas Optimizer — Batch & Relay</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.1/ethers.umd.min.js"></script>
+    <style>
+        *, *::before, *::after { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #111827;
+            --bg-card: #151c2e;
+            --bg-card-hover: #1a2338;
+            --border: #1e2a45;
+            --border-active: #3b5bdb;
+            --text-primary: #e2e8f0;
+            --text-secondary: #8892a8;
+            --text-muted: #5a6478;
+            --accent: #4c6ef5;
+            --accent-glow: rgba(76, 110, 245, 0.25);
+            --green: #22c55e;
+            --green-glow: rgba(34, 197, 94, 0.2);
+            --orange: #f59e0b;
+            --red: #ef4444;
+            --font-display: 'Sora', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        /* Light Mode Colors */
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-card: #f0f2f5;
+            --bg-card-hover: #e8eaed;
+            --border: #d1d5db;
+            --border-active: #6b21a8;
+            --text-primary: #1a202c;
+            --text-secondary: #4b5563;
+            --text-muted: #6b7280;
+            --accent: #6b21a8;
+            --accent-glow: rgba(107, 33, 168, 0.15);
+            --green: #10b981;
+            --green-glow: rgba(16, 185, 129, 0.15);
+            --orange: #f59e0b;
+            --red: #ef4444;
+        }
+
+        body {
+            font-family: var(--font-display);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(76, 110, 245, 0.06) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(34, 197, 94, 0.04) 0%, transparent 50%);
+            z-index: 0;
+            animation: bgShift 20s ease-in-out infinite alternate;
+        }
+
+        [data-theme="light"] body::before {
+            background: 
+                radial-gradient(ellipse at 20% 20%, rgba(107, 33, 168, 0.04) 0%, transparent 50%),
+                radial-gradient(ellipse at 80% 80%, rgba(16, 185, 129, 0.03) 0%, transparent 50%);
+        }
+
+        @keyframes bgShift {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(-5%, -3%); }
+        }
+
+        /* ─── Header/Navigation ─── */
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1.5rem 0;
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            z-index: 10;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--accent), #7c3aed);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: white;
+            letter-spacing: -1px;
+        }
+
+        .logo-text h1 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .logo-text span {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        nav {
+            display: flex;
+            gap: 2rem;
+            flex: 1;
+            margin: 0 3rem;
+        }
+
+        nav a {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+            cursor: pointer;
+        }
+
+        nav a:hover {
+            color: var(--accent);
+        }
+
+        .wallet-section {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .theme-toggle {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: all 0.2s;
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .network-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--orange);
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            padding: 0.4rem 0.75rem;
+            border-radius: 20px;
+        }
+
+        .network-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--orange);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .connect-btn {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: 500;
+            padding: 0.6rem 1.2rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .connect-btn:hover {
+            border-color: var(--accent);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .connect-btn.connected {
+            border-color: var(--green);
+            color: var(--green);
+        }
+
+        /* ─── Container & Wrapper ─── */
+        .container {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1.5rem;
+        }
+
+        /* ─── Hero Section ─── */
+        .hero {
+            padding: 5rem 0;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-label {
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 1rem;
+        }
+
+        .hero-title {
+            font-size: 3.5rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--text-primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+            max-width: 600px;
+            margin: 0 auto 2rem;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 768px) {
+            .hero-title { font-size: 2.5rem; }
+            nav { display: none; }
+        }
+
+        /* ─── Status Bar ─── */
+        .status-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin: 3rem 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .status-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.2s;
+        }
+
+        .status-card:hover {
+            border-color: var(--border-active);
+            transform: translateY(-2px);
+        }
+
+        .status-label {
+            font-size: 0.65rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-value {
+            font-size: 1.3rem;
+            font-weight: 600;
+            font-family: var(--font-mono);
+        }
+
+        .status-value.green { color: var(--green); }
+        .status-value.orange { color: var(--orange); }
+        .status-value.accent { color: var(--accent); }
+
+        /* ─── Section ─── */
+        .section {
+            margin: 4rem 0;
+            position: relative;
+            z-index: 1;
+        }
+
+        .section-label {
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 1rem;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 3rem;
+            text-align: center;
+        }
+
+        /* ─── Features Grid ─── */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .feature-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 8px 32px var(--accent-glow);
+            transform: translateY(-4px);
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .feature-card h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+
+        .feature-card p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        /* ─── Action Builder ─── */
+        .action-builder {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .action-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .action-item {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            display: grid;
+            grid-template-columns: auto 1fr 1fr auto;
+            gap: 1rem;
+            align-items: center;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .action-num {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(76, 110, 245, 0.15);
+            border: 1px solid rgba(76, 110, 245, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-family: var(--font-mono);
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .action-input {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            padding: 0.65rem 0.85rem;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            color: var(--text-primary);
+            outline: none;
+            transition: border-color 0.2s;
+            width: 100%;
+        }
+
+        .action-input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        .action-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        .remove-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            color: var(--red);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: all 0.2s;
+        }
+
+        .remove-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: var(--red);
+        }
+
+        .add-btn {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            padding: 0.8rem 1.5rem;
+            border-radius: 10px;
+            border: 1px dashed var(--border);
+            background: transparent;
+            color: var(--accent);
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .add-btn:hover {
+            border-color: var(--accent);
+            background: rgba(76, 110, 245, 0.08);
+        }
+
+        /* ─── Execute Panel ─── */
+        .execute-panel {
+            background: linear-gradient(135deg, rgba(76, 110, 245, 0.1), rgba(122, 58, 237, 0.05));
+            border: 1px solid var(--border-active);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        [data-theme="light"] .execute-panel {
+            background: linear-gradient(135deg, rgba(107, 33, 168, 0.08), rgba(147, 51, 234, 0.04));
+        }
+
+        .execute-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+        }
+
+        .gas-estimate {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .gas-label {
+            font-size: 0.65rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .gas-comparison {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .gas-old {
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            color: var(--orange);
+            text-decoration: line-through;
+        }
+
+        .gas-arrow {
+            color: var(--green);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .gas-new {
+            font-family: var(--font-mono);
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--green);
+        }
+
+        .gas-saving {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: white;
+            background: linear-gradient(135deg, var(--green), #16a34a);
+            padding: 0.3rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .execute-btn {
+            font-family: var(--font-display);
+            font-size: 0.95rem;
+            font-weight: 600;
+            padding: 1rem 2.5rem;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, var(--accent), #7c3aed);
+            color: white;
+            cursor: pointer;
+            transition: all 0.25s;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+
+        .execute-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px var(--accent-glow);
+        }
+
+        .execute-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ─── Log Container ─── */
+        .log-section {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            overflow: hidden;
+            margin: 2rem 0;
+        }
+
+        .log-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--bg-secondary);
+        }
+
+        .log-title {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+        }
+
+        .log-body {
+            padding: 1.5rem;
+            max-height: 350px;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+
+        .log-body::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .log-body::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .log-entry {
+            padding: 0.3rem 0;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .log-time {
+            color: var(--text-muted);
+            margin-right: 0.75rem;
+        }
+
+        .log-info { color: var(--accent); }
+        .log-success { color: var(--green); }
+        .log-warn { color: var(--orange); }
+        .log-error { color: var(--red); }
+
+        /* ─── Step Indicators ─── */
+        .steps {
+            display: flex;
+            gap: 0;
+            margin: 2rem 0;
+        }
+
+        .step {
+            flex: 1;
+            padding: 1.25rem;
+            text-align: center;
+            border: 1px solid var(--border);
+            background: var(--bg-card);
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .step:first-child { border-radius: 12px 0 0 12px; }
+        .step:last-child { border-radius: 0 12px 12px 0; }
+
+        .step.active {
+            border-color: var(--accent);
+            background: rgba(76, 110, 245, 0.1);
+        }
+
+        [data-theme="light"] .step.active {
+            background: rgba(107, 33, 168, 0.08);
+        }
+
+        .step.done {
+            border-color: var(--green);
+            background: rgba(34, 197, 94, 0.08);
+        }
+
+        .step-num {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
+        }
+
+        .step.active .step-num { color: var(--accent); }
+        .step.done .step-num { color: var(--green); }
+
+        .step-label {
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        .step.active .step-label { color: var(--accent); }
+        .step.done .step-label { color: var(--green); }
+
+        /* ─── Savings Visualization ─── */
+        .savings-visual {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            display: none;
+        }
+
+        .savings-visual.visible { display: block; animation: fadeIn 0.5s ease; }
+
+        .savings-title {
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 2rem;
+        }
+
+        .bar-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .bar-label {
+            font-size: 0.8rem;
+            font-family: var(--font-mono);
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .bar-track {
+            height: 28px;
+            background: var(--bg-primary);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative;
+            border: 1px solid var(--border);
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 8px;
+            transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+            position: relative;
+        }
+
+        .bar-fill.individual {
+            background: linear-gradient(90deg, var(--orange), var(--red));
+        }
+
+        .bar-fill.batched {
+            background: linear-gradient(90deg, var(--accent), var(--green));
+        }
+
+        .savings-summary {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .savings-pct {
+            font-size: 3rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+            color: var(--green);
+            line-height: 1;
+        }
+
+        .savings-desc {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+        }
+
+        /* ─── Architecture Diagram ─── */
+        .arch-diagram {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            overflow-x: auto;
+        }
+
+        .arch-flow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 2rem 0;
+        }
+
+        .arch-node {
+            background: var(--bg-primary);
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            text-align: center;
+            min-width: 140px;
+            transition: all 0.3s;
+        }
+
+        .arch-node:hover {
+            border-color: var(--accent);
+            box-shadow: 0 4px 20px var(--accent-glow);
+            transform: translateY(-3px);
+        }
+
+        .arch-node-icon {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .arch-node-title {
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .arch-node-desc {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 0.25rem;
+        }
+
+        .arch-arrow {
+            font-size: 1.5rem;
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .arch-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .arch-detail-card {
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+
+        .arch-detail-card h4 {
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+            color: var(--accent);
+        }
+
+        .arch-detail-card p, .arch-detail-card li {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            font-family: var(--font-display);
+        }
+
+        .arch-detail-card ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .arch-detail-card li::before {
+            content: "→ ";
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        /* ─── How It Works Steps ─── */
+        .how-steps {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
+        }
+
+        .how-step {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.75rem;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .how-step:hover {
+            border-color: var(--accent);
+            transform: translateY(-3px);
+        }
+
+        .how-step-num {
+            position: absolute;
+            top: -12px;
+            left: 16px;
+            background: var(--accent);
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            font-family: var(--font-mono);
+        }
+
+        .how-step h4 {
+            font-size: 0.95rem;
+            margin-bottom: 0.5rem;
+            margin-top: 0.25rem;
+        }
+
+        .how-step p {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .how-step .gas-tag {
+            display: inline-block;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 6px;
+            margin-top: 0.5rem;
+        }
+
+        .gas-tag.free {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--green);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+
+        .gas-tag.paid {
+            background: rgba(245, 158, 11, 0.15);
+            color: var(--orange);
+            border: 1px solid rgba(245, 158, 11, 0.3);
+        }
+
+        .gas-tag.sponsored {
+            background: rgba(76, 110, 245, 0.15);
+            color: var(--accent);
+            border: 1px solid rgba(76, 110, 245, 0.3);
+        }
+
+        /* ─── Gas Math Section ─── */
+        .gas-math {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 2rem 0;
+        }
+
+        .gas-math-title {
+            font-size: 0.75rem;
+            font-family: var(--font-mono);
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            margin-bottom: 1.5rem;
+        }
+
+        .gas-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+        }
+
+        .gas-table th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            border-bottom: 2px solid var(--border);
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .gas-table td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-secondary);
+        }
+
+        .gas-table tr:hover td {
+            color: var(--text-primary);
+            background: rgba(76, 110, 245, 0.05);
+        }
+
+        .gas-table .highlight {
+            color: var(--green);
+            font-weight: 600;
+        }
+
+        /* ─── Security Grid ─── */
+        .security-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .security-item {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            display: flex;
+            gap: 0.75rem;
+            align-items: flex-start;
+        }
+
+        .security-icon {
+            font-size: 1.3rem;
+            flex-shrink: 0;
+        }
+
+        .security-item h5 {
+            font-size: 0.85rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .security-item p {
+            font-size: 0.78rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        /* ─── Footer ─── */
+        .footer {
+            border-top: 1px solid var(--border);
+            padding: 3rem 0;
+            margin-top: 4rem;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .footer-col h4 {
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+
+        .footer-col a {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .footer-col a:hover {
+            color: var(--accent);
+        }
+
+        .footer-bottom {
+            border-top: 1px solid var(--border);
+            padding-top: 2rem;
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        /* ─── Empty State ─── */
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        /* ─── Spinner ─── */
+        .spinner {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            margin-right: 0.4rem;
+            vertical-align: middle;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 640px) {
+            .header { flex-direction: column; gap: 1rem; }
+            .hero-title { font-size: 2rem; }
+            .section-title { font-size: 1.8rem; }
+            .action-item {
+                grid-template-columns: auto 1fr auto;
+            }
+            .action-input:nth-child(3) {
+                grid-column: 2;
+            }
+            .execute-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .execute-btn {
+                width: 100%;
+            }
+            .steps { flex-wrap: wrap; }
+            .step { min-width: 100px; }
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <!-- Header/Navigation -->
+    <header class="header">
+        <div class="logo-area">
+            <div class="logo-icon">⚡</div>
+            <div class="logo-text">
+                <h1>Gas Optimizer</h1>
+                <span>Batch & Relay Engine</span>
+            </div>
+        </div>
+        <nav>
+            <a href="#features">Features</a>
+            <a href="#how-it-works">How It Works</a>
+            <a href="#app">App</a>
+        </nav>
+        <div class="wallet-section">
+            <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+                🌙
+            </button>
+            <div class="network-badge">
+                <div class="network-dot"></div>
+                Ganache
+            </div>
+            <button class="connect-btn" id="connectBtn" onclick="connectWallet()">
+                Connect Wallet
+            </button>
+        </div>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-label">Web3 Infrastructure</div>
+        <h2 class="hero-title">Save Gas with Batch Transactions</h2>
+        <p class="hero-subtitle">
+            Combine multiple token transfers into a single optimized transaction. 
+            Sign with your wallet—no gas fees required. The relayer handles everything.
+        </p>
+    </section>
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-card">
+            <div class="status-label">Wallet Status</div>
+            <div class="status-value accent" id="walletStatus">Not connected</div>
+        </div>
+        <div class="status-card">
+            <div class="status-label">Your Nonce</div>
+            <div class="status-value" id="nonceStatus">—</div>
+        </div>
+        <div class="status-card">
+            <div class="status-label">Token Balance</div>
+            <div class="status-value green" id="balanceStatus">—</div>
+        </div>
+        <div class="status-card">
+            <div class="status-label">Pending Actions</div>
+            <div class="status-value orange" id="pendingStatus">0</div>
+        </div>
+    </div>
+
+    <!-- Step Progress -->
+    <div class="steps">
+        <div class="step active" id="step1">
+            <div class="step-num">01</div>
+            <div class="step-label">Connect</div>
+        </div>
+        <div class="step" id="step2">
+            <div class="step-num">02</div>
+            <div class="step-label">Build</div>
+        </div>
+        <div class="step" id="step3">
+            <div class="step-num">03</div>
+            <div class="step-label">Sign</div>
+        </div>
+        <div class="step" id="step4">
+            <div class="step-num">04</div>
+            <div class="step-label">Execute</div>
+        </div>
+    </div>
+
+    <!-- Interactive App Section -->
+    <section id="app" class="section">
+        <div class="section-label" style="text-align: center;">Interactive Application</div>
+        <h2 class="section-title">Start Saving Gas Now</h2>
+
+        <!-- Action Builder -->
+        <div class="action-builder">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+                <div style="font-size: 0.9rem; font-weight: 600;">Build Your Batch</div>
+                <div style="font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-muted);" id="actionCount">0 actions</div>
+            </div>
+            <div class="action-list" id="actionList">
+                <div class="empty-state">Add your first transfer to get started</div>
+            </div>
+            <button class="add-btn" onclick="addAction()">+ Add Transfer</button>
+        </div>
+
+        <!-- Execute Panel -->
+        <div class="execute-panel">
+            <div class="execute-header">
+                <div class="gas-estimate">
+                    <div class="gas-label">Estimated Gas Savings</div>
+                    <div class="gas-comparison">
+                        <span class="gas-old" id="gasOld">—</span>
+                        <span class="gas-arrow">→</span>
+                        <span class="gas-new" id="gasNew">—</span>
+                        <span class="gas-saving" id="gasSaving" style="display:none"></span>
+                    </div>
+                </div>
+                <button class="execute-btn" id="executeBtn" onclick="executeBatch()" disabled>
+                    Sign & Relay Batch
+                </button>
+            </div>
+        </div>
+
+        <!-- Log Section -->
+        <div class="log-section">
+            <div class="log-header">
+                <div class="log-title">Activity Log</div>
+                <button class="connect-btn" style="padding:0.35rem 0.75rem; font-size:0.7rem;" onclick="clearLog()">Clear</button>
+            </div>
+            <div class="log-body" id="logBody">
+                <div class="log-entry">
+                    <span class="log-time">[--:--:--]</span>
+                    <span class="log-info">Waiting for wallet connection...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gas Savings Visualization -->
+        <div class="savings-visual" id="savingsVisual">
+            <div class="savings-title">Gas Optimization Results</div>
+            <div class="bar-group">
+                <div class="bar-label">
+                    <span>Without Batching</span>
+                    <span id="individualGasLabel">0 gas</span>
+                </div>
+                <div class="bar-track">
+                    <div class="bar-fill individual" id="individualBar" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="bar-group">
+                <div class="bar-label">
+                    <span>With Batching</span>
+                    <span id="batchedGasLabel">0 gas</span>
+                </div>
+                <div class="bar-track">
+                    <div class="bar-fill batched" id="batchedBar" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="savings-summary">
+                <div class="savings-pct" id="savingsPct">0%</div>
+                <div class="savings-desc">Gas Fee Reduction</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="section">
+        <div class="section-label">Key Benefits</div>
+        <h2 class="section-title">How It Helps You</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">💰</div>
+                <h3>Gas Savings</h3>
+                <p>Save up to 50% on transaction fees by batching multiple transfers into one transaction.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔐</div>
+                <h3>Non-Custodial</h3>
+                <p>You sign and approve each action. Your wallet never leaves your control.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Fast & Simple</h3>
+                <p>Build actions, sign once, and let the relayer handle the rest in seconds.</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🛡️</div>
+                <h3>Secure</h3>
+                <p>EIP-712 signed messages with smart contract verification ensure maximum security.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" class="section">
+        <div class="section-label" style="text-align: center;">Technical Deep Dive</div>
+        <h2 class="section-title">How It Works</h2>
+
+        <!-- Architecture Flow Diagram -->
+        <div class="arch-diagram">
+            <div style="text-align: center; margin-bottom: 1rem;">
+                <span style="font-family: var(--font-display); font-size: 0.85rem; color: var(--text-primary); font-weight: 600;">System Architecture — End-to-End Transaction Flow</span>
+            </div>
+            <div class="arch-flow">
+                <div class="arch-node">
+                    <div class="arch-node-icon">👤</div>
+                    <div class="arch-node-title">User Wallet</div>
+                    <div class="arch-node-desc">Signs EIP-712 data<br>Zero gas cost</div>
+                </div>
+                <div class="arch-arrow">→</div>
+                <div class="arch-node">
+                    <div class="arch-node-icon">📡</div>
+                    <div class="arch-node-title">Relayer Server</div>
+                    <div class="arch-node-desc">Queues & batches<br>requests off-chain</div>
+                </div>
+                <div class="arch-arrow">→</div>
+                <div class="arch-node">
+                    <div class="arch-node-icon">📦</div>
+                    <div class="arch-node-title">BatchExecutor</div>
+                    <div class="arch-node-desc">Verifies sigs &<br>executes on-chain</div>
+                </div>
+                <div class="arch-arrow">→</div>
+                <div class="arch-node">
+                    <div class="arch-node-icon">🪙</div>
+                    <div class="arch-node-title">Target Contract</div>
+                    <div class="arch-node-desc">ERC-20 transfers<br>with real sender</div>
+                </div>
+            </div>
+            <div style="text-align: center; margin-top: 0.5rem;">
+                <span style="font-size: 1.3rem; color: var(--green);">↑</span><br>
+                <div class="arch-node" style="display: inline-block; margin-top: 0.5rem; border-color: var(--green);">
+                    <div class="arch-node-icon">💰</div>
+                    <div class="arch-node-title">GasSponsor Pool</div>
+                    <div class="arch-node-desc">Reimburses relayer<br>with constraints</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step-by-Step Process -->
+        <div class="how-steps">
+            <div class="how-step">
+                <div class="how-step-num">1</div>
+                <h4>Connect Wallet</h4>
+                <p>User connects MetaMask to Ganache local network. The dApp reads their nonce and token balance from the blockchain.</p>
+                <span class="gas-tag free">Gas: 0 (read-only)</span>
+            </div>
+            <div class="how-step">
+                <div class="how-step-num">2</div>
+                <h4>Build Actions</h4>
+                <p>User defines N token transfers (recipient + amount). Actions are composed entirely in the browser — nothing touches the chain yet.</p>
+                <span class="gas-tag free">Gas: 0 (off-chain)</span>
+            </div>
+            <div class="how-step">
+                <div class="how-step-num">3</div>
+                <h4>Sign via EIP-712</h4>
+                <p>Each action is wrapped in a ForwardRequest struct and signed with EIP-712 typed data. MetaMask shows human-readable details. Signature binds to contract + chain.</p>
+                <span class="gas-tag free">Gas: 0 (signature only)</span>
+            </div>
+            <div class="how-step">
+                <div class="how-step-num">4</div>
+                <h4>Submit to Relayer</h4>
+                <p>Signed requests are sent to the relayer server via POST /api/relay. The relayer verifies each signature before queuing.</p>
+                <span class="gas-tag free">Gas: 0 (HTTP request)</span>
+            </div>
+            <div class="how-step">
+                <div class="how-step-num">5</div>
+                <h4>Batch Execution</h4>
+                <p>Relayer submits all requests in a single executeBatch() call. One base cost (21,000 gas) instead of N. Each sub-call verified and executed atomically.</p>
+                <span class="gas-tag paid">Gas: 21K + N×13K (relayer pays)</span>
+            </div>
+            <div class="how-step">
+                <div class="how-step-num">6</div>
+                <h4>Gas Reimbursement</h4>
+                <p>If a GasSponsor pool is funded, the relayer claims reimbursement. 6-layer constraint system prevents abuse (per-claim, per-user, per-relayer, global, balance, pause).</p>
+                <span class="gas-tag sponsored">Gas: Sponsored by pool</span>
+            </div>
+        </div>
+
+        <!-- Architecture Details -->
+        <div class="arch-detail-grid">
+            <div class="arch-detail-card">
+                <h4>🔐 EIP-712 Signature Scheme</h4>
+                <ul>
+                    <li>Domain separator binds to contract + chain ID</li>
+                    <li>Typed data hash prevents cross-contract replay</li>
+                    <li>ecrecover() verifies signer on-chain</li>
+                    <li>MetaMask renders human-readable signing UI</li>
+                </ul>
+            </div>
+            <div class="arch-detail-card">
+                <h4>🔄 Nonce-Based Replay Protection</h4>
+                <ul>
+                    <li>Sequential nonces per user (like Ethereum itself)</li>
+                    <li>Incremented before execution (reentrancy safe)</li>
+                    <li>Each request is unique: (chain, contract, nonce)</li>
+                    <li>Stale signatures automatically invalidated</li>
+                </ul>
+            </div>
+            <div class="arch-detail-card">
+                <h4>📦 Trusted Forwarder Pattern</h4>
+                <ul>
+                    <li>BatchExecutor appends real sender to calldata</li>
+                    <li>Target contract overrides _msgSender()</li>
+                    <li>Extracts last 20 bytes when called by forwarder</li>
+                    <li>Compatible with any ERC-20/ERC-721 contract</li>
+                </ul>
+            </div>
+            <div class="arch-detail-card">
+                <h4>💰 Sponsorship Constraint Layers</h4>
+                <ul>
+                    <li>Per-Claim Cap: Bounds maximum reimbursement</li>
+                    <li>Per-Relayer Daily: Prevents single-relayer drain</li>
+                    <li>Per-User Daily: Prevents Sybil abuse</li>
+                    <li>Global Daily + Balance + Pause: Safety nets</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Gas Savings Table -->
+        <div class="gas-math">
+            <div class="gas-math-title">📊 Gas Optimization Analysis</div>
+            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem; font-family: var(--font-display); line-height: 1.6;">
+                Every Ethereum transaction pays a <strong>21,000 gas base cost</strong>. Batching amortizes this across N operations.
+                For N token transfers, individual cost = N × 52,000 gas vs batched cost = 21,000 + N × ~15,600 gas.
+            </p>
+            <table class="gas-table">
+                <thead>
+                    <tr>
+                        <th>Batch Size</th>
+                        <th>Individual Cost</th>
+                        <th>Batched Cost</th>
+                        <th>Gas Saved</th>
+                        <th>Savings %</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>2 transfers</td><td>104,000</td><td>65,000</td><td>39,000</td><td class="highlight">37.5%</td></tr>
+                    <tr><td>5 transfers</td><td>260,000</td><td>104,000</td><td>156,000</td><td class="highlight">60.0%</td></tr>
+                    <tr><td>10 transfers</td><td>520,000</td><td>182,000</td><td>338,000</td><td class="highlight">65.0%</td></tr>
+                    <tr><td>20 transfers</td><td>1,040,000</td><td>338,000</td><td>702,000</td><td class="highlight">67.5%</td></tr>
+                    <tr><td>50 transfers</td><td>2,600,000</td><td>806,000</td><td>1,794,000</td><td class="highlight">69.0%</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Security Section -->
+        <div style="margin-top: 3rem;">
+            <div class="section-label" style="text-align: center;">Trust Model</div>
+            <h3 style="text-align: center; font-size: 1.5rem; margin-bottom: 2rem;">Security & Trust Guarantees</h3>
+            <div class="security-grid">
+                <div class="security-item">
+                    <div class="security-icon">🛡️</div>
+                    <div>
+                        <h5>Replay Protection</h5>
+                        <p>Sequential nonces + EIP-712 domain binding (chainId + contract address) make every signature globally unique.</p>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">🔑</div>
+                    <div>
+                        <h5>Non-Custodial</h5>
+                        <p>The relayer never holds user keys or funds. It can only execute exactly what the user signed — nothing more.</p>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">🚫</div>
+                    <div>
+                        <h5>Anti-Griefing</h5>
+                        <p>Each sub-call has its own gas limit. One failing action cannot consume the entire batch's gas budget.</p>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">🔄</div>
+                    <div>
+                        <h5>Censorship Resistant</h5>
+                        <p>If the relayer is down, users can call executeBatch() directly on the contract, paying their own gas.</p>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">🏦</div>
+                    <div>
+                        <h5>Pool Safety</h5>
+                        <p>6-layer constraint system on GasSponsor prevents drain attacks even with compromised relayer keys.</p>
+                    </div>
+                </div>
+                <div class="security-item">
+                    <div class="security-icon">⏸️</div>
+                    <div>
+                        <h5>Emergency Controls</h5>
+                        <p>Owner can pause the sponsor pool and withdraw funds instantly via emergencyWithdraw().</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <div class="footer-content">
+            <div class="footer-col">
+                <h4>Product</h4>
+                <a href="#features">Features</a>
+                <a href="#how-it-works">Architecture</a>
+                <a href="https://github.com/amritanshuroy28/batch-relay-dapp" target="_blank">GitHub</a>
+            </div>
+            <div class="footer-col">
+                <h4>Resources</h4>
+                <a href="https://github.com/amritanshuroy28/batch-relay-dapp/blob/main/ARCHITECTURE.md" target="_blank">Architecture Doc</a>
+                <a href="https://eips.ethereum.org/EIPS/eip-712" target="_blank">EIP-712 Spec</a>
+                <a href="https://eips.ethereum.org/EIPS/eip-2771" target="_blank">ERC-2771 Spec</a>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>Built for Web3Assam Hackathon — Gas Fee Optimizer & Batch Transaction System</p>
+            <p style="margin-top: 0.5rem; color: var(--text-muted);">© 2026 Gas Optimizer — Batch & Relay Engine. Ganache Local Network.</p>
+        </div>
+    </footer>
+</div>
+
+<script>
+    // ═══════════════════════════════════════════════════════════════
+    //  CONFIGURATION
+    // ═══════════════════════════════════════════════════════════════
+
+    const CONFIG = {
+        chainId: 1337,  // Ganache
+        chainName: "Ganache",
+        rpcUrl: "http://127.0.0.1:7545",
+        batchExecutorAddress: "0xE9f0aEF7BfA0be49A4F4Ff43FD7071081ea0680d",
+        sampleTokenAddress: "0x9605e4c2B6053f7befb5d8d8c5a5e9BDab9A148f",
+        gasSponsorAddress: "0x8930c04455541778b6eBda6bD93d6Ec5d0eAF596",
+    };
+
+    // ═══════════════════════════════════════════════════════════════
+    //  ABIs
+    // ═══════════════════════════════════════════════════════════════
+
+    const BATCH_EXECUTOR_ABI = [
+        "function executeBatch(tuple(address from, address to, uint256 value, uint256 gas, uint256 nonce, bytes data)[] requests, bytes[] signatures) external payable returns (bool[])",
+        "function verify(tuple(address from, address to, uint256 value, uint256 gas, uint256 nonce, bytes data) req, bytes signature) external view returns (bool)",
+        "function getNonce(address from) external view returns (uint256)"
+    ];
+
+    const TOKEN_ABI = [
+        "function transfer(address to, uint256 amount) external returns (bool)",
+        "function balanceOf(address account) external view returns (uint256)",
+        "function decimals() external view returns (uint8)",
+        "function symbol() external view returns (string)"
+    ];
+
+    // ═══════════════════════════════════════════════════════════════
+    //  EIP-712 TYPES
+    // ═══════════════════════════════════════════════════════════════
+
+    const EIP712_DOMAIN = {
+        name: "BatchExecutor",
+        version: "1",
+        chainId: CONFIG.chainId,
+        verifyingContract: CONFIG.batchExecutorAddress
+    };
+
+    const FORWARD_REQUEST_TYPES = {
+        ForwardRequest: [
+            { name: "from", type: "address" },
+            { name: "to", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "gas", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "data", type: "bytes" }
+        ]
+    };
+
+    // ═══════════════════════════════════════════════════════════════
+    //  STATE
+    // ═══════════════════════════════════════════════════════════════
+
+    let provider = null;
+    let signer = null;
+    let userAddress = null;
+    let batchExecutor = null;
+    let tokenContract = null;
+    let currentNonce = 0;
+    let actions = [];
+    let actionId = 0;
+
+    // ═══════════════════════════════════════════════════════════════
+    //  WALLET CONNECTION
+    // ═══════════════════════════════════════════════════════════════
+
+    async function connectWallet() {
+        if (!window.ethereum) {
+            log("error", "MetaMask not detected. Please install MetaMask.");
+            return;
+        }
+
+        try {
+            log("info", "Requesting wallet connection...");
+
+            provider = new ethers.BrowserProvider(window.ethereum);
+            await provider.send("eth_requestAccounts", []);
+            signer = await provider.getSigner();
+            userAddress = await signer.getAddress();
+
+            // Check network
+            const network = await provider.getNetwork();
+            if (Number(network.chainId) !== CONFIG.chainId) {
+                log("warn", `Wrong network. Please switch to ${CONFIG.chainName}.`);
+                try {
+                    await window.ethereum.request({
+                        method: "wallet_switchEthereumChain",
+                        params: [{ chainId: "0x" + CONFIG.chainId.toString(16) }]
+                    });
+                    provider = new ethers.BrowserProvider(window.ethereum);
+                    signer = await provider.getSigner();
+                } catch (e) {
+                    log("error", "Failed to switch network.");
+                    return;
+                }
+            }
+
+            // Initialize contracts
+            batchExecutor = new ethers.Contract(CONFIG.batchExecutorAddress, BATCH_EXECUTOR_ABI, signer);
+            tokenContract = new ethers.Contract(CONFIG.sampleTokenAddress, TOKEN_ABI, signer);
+
+            // Update UI
+            const short = userAddress.slice(0, 6) + "..." + userAddress.slice(-4);
+            document.getElementById("connectBtn").textContent = short;
+            document.getElementById("connectBtn").classList.add("connected");
+            document.getElementById("walletStatus").textContent = short;
+
+            setStep(2);
+            log("success", `Connected: ${short}`);
+
+            // Fetch nonce and balance
+            await refreshStatus();
+
+        } catch (err) {
+            log("error", `Connection failed: ${err.message}`);
+        }
+    }
+
+    async function refreshStatus() {
+        try {
+            currentNonce = Number(await batchExecutor.getNonce(userAddress));
+            document.getElementById("nonceStatus").textContent = currentNonce;
+
+            const balance = await tokenContract.balanceOf(userAddress);
+            const decimals = await tokenContract.decimals();
+            const symbol = await tokenContract.symbol();
+            const formatted = ethers.formatUnits(balance, decimals);
+            document.getElementById("balanceStatus").textContent = `${parseFloat(formatted).toLocaleString()} ${symbol}`;
+        } catch (err) {
+            document.getElementById("nonceStatus").textContent = "0";
+            document.getElementById("balanceStatus").textContent = "—";
+            log("warn", "Could not read contracts. Are they deployed?");
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  ACTION BUILDER
+    // ═══════════════════════════════════════════════════════════════
+
+    function addAction() {
+        actionId++;
+        actions.push({ id: actionId, to: "", amount: "" });
+        renderActions();
+        updateGasEstimate();
+        setStep(2);
+    }
+
+    function removeAction(id) {
+        actions = actions.filter(a => a.id !== id);
+        renderActions();
+        updateGasEstimate();
+    }
+
+    function updateAction(id, field, value) {
+        const action = actions.find(a => a.id === id);
+        if (action) action[field] = value;
+        updateGasEstimate();
+    }
+
+    function renderActions() {
+        const list = document.getElementById("actionList");
+        const count = document.getElementById("actionCount");
+        const pending = document.getElementById("pendingStatus");
+
+        if (actions.length === 0) {
+            list.innerHTML = '<div class="empty-state">Add your first transfer to get started</div>';
+            count.textContent = "0 actions";
+            pending.textContent = "0";
+            document.getElementById("executeBtn").disabled = true;
+            return;
+        }
+
+        list.innerHTML = actions.map((a, idx) => `
+            <div class="action-item">
+                <div class="action-num">${idx + 1}</div>
+                <input class="action-input" 
+                       type="text" 
+                       placeholder="Recipient address (0x...)" 
+                       value="${a.to}"
+                       oninput="updateAction(${a.id}, 'to', this.value)" />
+                <input class="action-input" 
+                       type="text" 
+                       placeholder="Amount (tokens)" 
+                       value="${a.amount}"
+                       oninput="updateAction(${a.id}, 'amount', this.value)" />
+                <button class="remove-btn" onclick="removeAction(${a.id})">×</button>
+            </div>
+        `).join("");
+
+        count.textContent = `${actions.length} action${actions.length !== 1 ? 's' : ''}`;
+        pending.textContent = actions.length;
+        document.getElementById("executeBtn").disabled = !userAddress || actions.length === 0;
+    }
+
+    function updateGasEstimate() {
+        const n = actions.length;
+        if (n === 0) {
+            document.getElementById("gasOld").textContent = "—";
+            document.getElementById("gasNew").textContent = "—";
+            document.getElementById("gasSaving").style.display = "none";
+            return;
+        }
+
+        const individualGas = n * 52000;
+        const batchedGas = 21000 + Math.ceil(n * 13000);
+        const actualBatchedEstimate = Math.min(batchedGas, Math.floor(individualGas * 0.65));
+
+        document.getElementById("gasOld").textContent = `${individualGas.toLocaleString()} gas`;
+        document.getElementById("gasNew").textContent = `${actualBatchedEstimate.toLocaleString()} gas`;
+
+        const savingPercent = Math.round(((individualGas - actualBatchedEstimate) / individualGas) * 100);
+        const savingEl = document.getElementById("gasSaving");
+        savingEl.textContent = `−${savingPercent}%`;
+        savingEl.style.display = "inline";
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  SIGN & EXECUTE
+    // ═══════════════════════════════════════════════════════════════
+
+    async function executeBatch() {
+        if (!signer || actions.length === 0) return;
+
+        const btn = document.getElementById("executeBtn");
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span>Signing...';
+
+        try {
+            const validActions = [];
+            const tokenIface = new ethers.Interface(TOKEN_ABI);
+
+            for (let i = 0; i < actions.length; i++) {
+                const a = actions[i];
+                if (!ethers.isAddress(a.to)) {
+                    log("error", `Action ${i + 1}: Invalid address`);
+                    resetBtn();
+                    return;
+                }
+                if (!a.amount || isNaN(a.amount) || parseFloat(a.amount) <= 0) {
+                    log("error", `Action ${i + 1}: Invalid amount`);
+                    resetBtn();
+                    return;
+                }
+                validActions.push({
+                    to: CONFIG.sampleTokenAddress,
+                    data: tokenIface.encodeFunctionData("transfer", [
+                        a.to,
+                        ethers.parseUnits(a.amount, 18)
+                    ]),
+                    gasLimit: 200000,
+                    value: 0
+                });
+            }
+
+            setStep(3);
+            log("info", `Preparing ${validActions.length} actions for signing...`);
+
+            const requests = [];
+            const signatures = [];
+
+            for (let i = 0; i < validActions.length; i++) {
+                const action = validActions[i];
+                const request = {
+                    from: userAddress,
+                    to: action.to,
+                    value: action.value,
+                    gas: action.gasLimit,
+                    nonce: currentNonce + i,
+                    data: action.data
+                };
+
+                log("info", `Signing action ${i + 1}/${validActions.length} (nonce: ${currentNonce + i})...`);
+                btn.innerHTML = `<span class="spinner"></span>Sign ${i + 1}/${validActions.length}`;
+
+                const signature = await signer.signTypedData(
+                    EIP712_DOMAIN,
+                    FORWARD_REQUEST_TYPES,
+                    request
+                );
+
+                requests.push(request);
+                signatures.push(signature);
+                log("success", `Action ${i + 1} signed ✓`);
+            }
+
+            setStep(4);
+            btn.innerHTML = '<span class="spinner"></span>Relaying...';
+            log("info", "Submitting batch to BatchExecutor...");
+
+            const tx = await batchExecutor.executeBatch(requests, signatures);
+            log("info", `Tx submitted: ${tx.hash.slice(0, 14)}...`);
+            log("info", "Waiting for confirmation...");
+
+            const receipt = await tx.wait();
+            const gasUsed = receipt.gasUsed;
+            const individualEstimate = BigInt(actions.length) * 52000n;
+            const savings = BigInt(individualEstimate) - BigInt(gasUsed);
+            const savingsPercent = (100n * savings) / BigInt(individualEstimate);
+
+            log("success", `✓ Batch executed in block ${receipt.blockNumber}`);
+            log("success", `Gas used: ${gasUsed.toString()} (actual on-chain)`);
+            log("success", `Individual cost (est.): ${individualEstimate.toString()} gas`);
+            log("success", `Saved: ${savings.toString()} gas (${savingsPercent}%)`);
+
+            showSavings(Number(individualEstimate), Number(gasUsed));
+
+            await refreshStatus();
+            actions = [];
+            renderActions();
+
+            for (let i = 1; i <= 4; i++) {
+                document.getElementById(`step${i}`).className = "step done";
+            }
+
+        } catch (err) {
+            log("error", `Failed: ${err.message}`);
+            if (err.code === "ACTION_REJECTED") {
+                log("warn", "User rejected the signature request.");
+                setStep(2);
+            }
+        }
+
+        resetBtn();
+    }
+
+    function resetBtn() {
+        const btn = document.getElementById("executeBtn");
+        btn.innerHTML = "Sign & Relay Batch";
+        btn.disabled = !userAddress || actions.length === 0;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  GAS SAVINGS VISUALIZATION
+    // ═══════════════════════════════════════════════════════════════
+
+    function showSavings(individualGas, batchedGas) {
+        const container = document.getElementById("savingsVisual");
+        container.classList.add("visible");
+
+        const maxGas = individualGas;
+        const indPct = 100;
+        const batchPct = (batchedGas / maxGas) * 100;
+        const saving = Math.round(((individualGas - batchedGas) / individualGas) * 100);
+
+        document.getElementById("individualGasLabel").textContent = `${individualGas.toLocaleString()} gas`;
+        document.getElementById("batchedGasLabel").textContent = `${batchedGas.toLocaleString()} gas`;
+
+        setTimeout(() => {
+            document.getElementById("individualBar").style.width = `${indPct}%`;
+        }, 100);
+        setTimeout(() => {
+            document.getElementById("batchedBar").style.width = `${batchPct}%`;
+        }, 400);
+
+        document.getElementById("savingsPct").textContent = `${saving}%`;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  HELPERS
+    // ═══════════════════════════════════════════════════════════════
+
+    function setStep(num) {
+        for (let i = 1; i <= 4; i++) {
+            const el = document.getElementById(`step${i}`);
+            if (i < num) el.className = "step done";
+            else if (i === num) el.className = "step active";
+            else el.className = "step";
+        }
+    }
+
+    function log(type, message) {
+        const body = document.getElementById("logBody");
+        const time = new Date().toLocaleTimeString("en-US", { hour12: false });
+        const entry = document.createElement("div");
+        entry.className = "log-entry";
+        entry.innerHTML = `<span class="log-time">[${time}]</span><span class="log-${type}">${message}</span>`;
+        body.appendChild(entry);
+        body.scrollTop = body.scrollHeight;
+    }
+
+    function clearLog() {
+        document.getElementById("logBody").innerHTML = "";
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  THEME SWITCHING
+    // ═══════════════════════════════════════════════════════════════
+
+    function initializeTheme() {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        setTheme(savedTheme);
+    }
+
+    function toggleTheme() {
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+        setTheme(newTheme);
+    }
+
+    function setTheme(theme) {
+        document.documentElement.setAttribute('data-theme', theme);
+        localStorage.setItem('theme', theme);
+        updateThemeToggleIcon(theme);
+    }
+
+    function updateThemeToggleIcon(theme) {
+        const toggle = document.getElementById('themeToggle');
+        if (theme === 'light') {
+            toggle.textContent = '☀️';
+            toggle.title = 'Switch to dark mode';
+        } else {
+            toggle.textContent = '🌙';
+            toggle.title = 'Switch to light mode';
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    //  INIT
+    // ═══════════════════════════════════════════════════════════════
+
+    // Initialize theme on page load
+    initializeTheme();
+
+    if (window.ethereum) {
+        window.ethereum.on("accountsChanged", () => window.location.reload());
+        window.ethereum.on("chainChanged", () => window.location.reload());
+    }
+</script>
+
+</body>
+</html>

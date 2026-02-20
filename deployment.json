@@ -1,0 +1,23 @@
+{
+  "timestamp": "2026-02-20T20:49:40.324Z",
+  "network": "ganache",
+  "deployer": "0x2BD0e97e2ea150e7B81E7326D3C55a212ff0fE28",
+  "contracts": {
+    "BatchExecutor": {
+      "address": "0xE9f0aEF7BfA0be49A4F4Ff43FD7071081ea0680d"
+    },
+    "SampleToken": {
+      "address": "0x9605e4c2B6053f7befb5d8d8c5a5e9BDab9A148f",
+      "trustForwarder": "0xE9f0aEF7BfA0be49A4F4Ff43FD7071081ea0680d"
+    },
+    "GasSponsor": {
+      "address": "0x8930c04455541778b6eBda6bD93d6Ec5d0eAF596",
+      "limits": {
+        "maxPerClaim": "0.05 ETH",
+        "dailyLimitPerRelayer": "1.0 ETH",
+        "dailyLimitPerUser": "0.01 ETH",
+        "globalDailyLimit": "5.0 ETH"
+      }
+    }
+  }
+}
