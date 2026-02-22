@@ -9,15 +9,12 @@
 //   - /api/batch/flush endpoint for manual flush
 //   - Graceful shutdown flushes remaining queue
 
-import express from "express";
-import path from "path";
-import { fileURLToPath } from "url";
-import dotenv from "dotenv";
-import { Relayer } from "./relayer.js";
+const express = require("express");
+const path = require("path");
+const dotenv = require("dotenv");
+const { Relayer } = require("./relayer.js");
 
 dotenv.config();
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -158,6 +155,16 @@ app.get("/health", (req, res) => {
         relayer: relayer ? "initialized" : "not configured",
         queue: relayer ? relayer.getStatus() : null,
         timestamp: new Date().toISOString()
+    });
+});
+
+// Serve contract addresses so the frontend stays in sync after redeployments
+app.get("/api/config", (req, res) => {
+    res.json({
+        batchExecutorAddress: process.env.BATCH_EXECUTOR_ADDRESS || null,
+        sampleTokenAddress: process.env.SAMPLE_TOKEN_ADDRESS || null,
+        gasSponsorAddress: process.env.GAS_SPONSOR_ADDRESS || null,
+        rpcUrl: process.env.GANACHE_RPC_URL || "http://127.0.0.1:7545",
     });
 });
 

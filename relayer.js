@@ -9,8 +9,8 @@
 //   - Pre-verification: batch verifyBatch() call before submission to filter invalids
 //   - Gas price awareness: uses provider fee data for better cost estimation
 
-import { ethers } from "ethers";
-import dotenv from "dotenv";
+const { ethers } = require("ethers");
+const dotenv = require("dotenv");
 
 dotenv.config();
 
@@ -355,4 +355,4 @@ class Relayer {
     }
 }
 
-export { Relayer };
+module.exports = { Relayer };

@@ -4,9 +4,9 @@
 
 ### ✓ Project Structure
 - Organized contracts into `contracts/` directory
-- Created `scripts/` for deployment
-- Set up Hardhat configuration
-- Converted to ESM modules (Node.js modern syntax)
+- Created `migrations/` for Truffle deployment scripts
+- Set up Truffle configuration (`truffle-config.js`)
+- CommonJS modules (Node.js)
 
 ### ✓ Smart Contracts (Ready to Deploy)
 - **BatchExecutor.sol** - EIP-712 signature verification & batch execution
@@ -14,9 +14,10 @@
 - **SampleToken.sol** - ERC-20 test token with meta-tx support
 
 ### ✓ Deployment Setup
-- Hardhat configuration (`hardhat.config.js`)
-- Deployment script (`scripts/deploy-v2.js`)
+- Truffle configuration (`truffle-config.js`)
+- Migration scripts (`migrations/1_initial_migration.js`, `migrations/2_deploy_contracts.js`)
 - Environment configuration template (`.env`)
+- Auto-update of `.env` and `deployment.json` after deployment
 
 ### ✓ Backend Server
 - Express.js server ready to run (`server.js`)
@@ -52,46 +53,47 @@
    npm run deploy
    ```
 
-### Step 4: Fund GasSponsor Pool
-   - Get GasSponsor address from deployment output
-   - Send 0.1-1 ETH to that address via MetaMask
-
-### Step 5: Update Frontend
-   - Edit `index.html`, find `const CONFIG = {`
-   - Update addresses from `deployment.json`
-
-### Step 6: Start Server
+### Step 4: Start Server
    ```bash
    npm start
    ```
    Opens: http://localhost:3000
 
+> **Note:** The frontend fetches contract addresses automatically from `GET /api/config`. No manual editing of `index.html` is needed after deployment.
+
 ## Command Reference
 
 ```bash
 # Compilation
-npm run compile              # Compile Solidity contracts
+npm run compile              # Compile Solidity contracts (Truffle)
 
 # Deployment
-npm run deploy              # Deploy to Ganache (requires .env)
-npm run deploy:local        # Deploy to local Hardhat node (testing)
+npm run deploy              # Deploy to Ganache (truffle migrate)
+npm run deploy:reset        # Redeploy from scratch (truffle migrate --reset)
+npm run deploy:local        # Deploy to local development node (port 8545)
 
 # Server
 npm start                   # Start Express server
 npm run dev                 # Same as start
 
+# Truffle Console
+npm run console             # Interactive Truffle console on Ganache
+
 # Testing
-npm test                    # Run gas benchmark tests on Ganache
+npm test                    # Run tests on Ganache
 
 # Check Health
 curl http://localhost:3000/health
+
+# Check contract config
+curl http://localhost:3000/api/config
 ```
 
 ## Project Files
 
 ### Configuration
 - `package.json` - Dependencies and scripts
-- `hardhat.config.js` - Hardhat settings for Ganache
+- `truffle-config.js` - Truffle settings for Ganache
 - `.env` - Environment variables (CREATE THIS!)
 - `deployment.json` - Generated after deployment
 
@@ -101,10 +103,10 @@ curl http://localhost:3000/health
 - `contracts/SampleToken.sol` - ERC-20 token for testing
 
 ### Backend
-- `server.js` - Express server with API endpoints
+- `server.js` - Express server with API endpoints (includes `/api/config`)
 - `relayer.js` - Batch collection and execution logic
 - `signer.js` - Off-chain transaction signing
-- `scripts/deploy-v2.js` - Deployment script
+- `migrations/2_deploy_contracts.js` - Truffle deployment script
 
 ### Frontend
 - `index.html` - Web interface for users
@@ -253,13 +255,13 @@ After deployment, you'll have:
 
 1. **Fill in `.env` file** with your Ganache credentials
 2. **Run** `npm run deploy`
-3. **Update** `index.html` with addresses (auto-populated in `.env`)
-4. **Start** `npm start`
-5. **Test** batching at http://localhost:3000
+3. **Start** `npm start`
+4. **Test** batching at http://localhost:3000
+5. **Optionally fund** GasSponsor pool with ETH for gas reimbursement
 
 ## Support & Resources
 
-- **Hardhat Guide**: https://hardhat.org/docs
+- **Truffle Docs**: https://trufflesuite.com/docs/truffle/
 - **Ethers.js Docs**: https://docs.ethers.org/v6
 - **EIP-712 Spec**: https://eips.ethereum.org/EIPS/eip-712
 - **Ganache**: https://trufflesuite.com/ganache/

@@ -157,9 +157,12 @@ This system implements a **Gas Fee Optimizer and Batch Transaction System** that
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │  Express Server (server.js)                                      │
-│    ├─ GET  /           → Serve frontend                          │
-│    ├─ GET  /health     → Health check + relayer status           │
-│    └─ POST /api/relay  → Accept signed requests                  │
+│    ├─ GET  /              → Serve frontend                          │
+│    ├─ GET  /health        → Health check + relayer status           │
+│    ├─ GET  /api/config    → Serve contract addresses from .env     │
+│    ├─ POST /api/relay     → Accept signed requests                  │
+│    ├─ GET  /api/batch/status → Queue status                        │
+│    └─ POST /api/batch/flush  → Force flush queue (admin)            │
 │                                                                  │
 │  Relayer Engine (relayer.js)                                     │
 │    ├─ Request Queue    → pendingRequests[], pendingSignatures[]  │

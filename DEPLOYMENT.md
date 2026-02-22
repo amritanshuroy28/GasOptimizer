@@ -45,13 +45,13 @@ RELAYER_ADDRESS=
 ### Step 2: Compile Contracts
 
 ```bash
-npx hardhat compile
+npm run compile
 ```
 
 This will:
 - Download the Solidity 0.8.20 compiler
 - Compile all contracts in `./contracts/`
-- Generate artifacts in `./artifacts/`
+- Generate artifacts in `./build/contracts/`
 
 ### Step 3: Deploy Contracts
 
@@ -94,13 +94,15 @@ The server will run on http://localhost:3000
 │   ├── BatchExecutor.sol      # Main batch execution contract
 │   ├── GasSponsor.sol         # Gas sponsorship pool
 │   └── SampleToken.sol        # ERC-20 token for testing
-├── scripts/
-│   └── deploy-v2.js           # Hardhat deployment script
+├── migrations/                # Truffle migration scripts
+│   ├── 1_initial_migration.js # Required initial migration
+│   └── 2_deploy_contracts.js  # Deploys all contracts, updates .env
+├── build/contracts/           # Compiled artifacts (generated)
 ├── index.html                 # Frontend dApp interface
 ├── server.js                  # Express server
 ├── relayer.js                 # Relayer logic
 ├── signer.js                  # Offline signer utility
-├── hardhat.config.js          # Hardhat configuration
+├── truffle-config.js          # Truffle configuration
 ├── package.json               # Dependencies
 └── .env                       # Environment variables (create this)
 ```
@@ -112,18 +114,16 @@ After deployment, check `deployment.json` for:
 - `SampleToken.address` - Test token
 - `GasSponsor.address` - Gas sponsorship pool
 
-Update these in `index.html` CONFIG object:
-```javascript
-const CONFIG = {
-    batchExecutorAddress: "0x...",
-    sampleTokenAddress: "0x...",
-    gasSponsorAddress: "0x...",
-};
+The frontend automatically fetches these addresses from the server via `GET /api/config`, so no manual editing of `index.html` is needed.
+
+To verify the config endpoint:
+```bash
+curl http://localhost:3000/api/config
 ```
 
 ## Gas Sponsor Configuration
 
-Default limits (adjust in `scripts/deploy-v2.js` before deploying):
+Default limits (adjust in `migrations/2_deploy_contracts.js` before deploying):
 
 - **Max per claim**: 0.05 ETH
 - **Daily relayer limit**: 1 ETH
@@ -165,9 +165,33 @@ Check server and relayer status
 {
   "status": "ok",
   "relayer": "initialized|not configured",
-  "timestamp": "2026-02-20T..."
+  "timestamp": "2026-02-22T..."
 }
 ```
+
+### GET /api/config
+Get deployed contract addresses (auto-served from .env)
+```json
+{
+  "batchExecutorAddress": "0x...",
+  "sampleTokenAddress": "0x...",
+  "gasSponsorAddress": "0x...",
+  "rpcUrl": "http://127.0.0.1:7545"
+}
+```
+
+### GET /api/batch/status
+Get current batch queue status
+```json
+{
+  "queueLength": 3,
+  "maxBatchSize": 10,
+  "flushIntervalMs": 15000
+}
+```
+
+### POST /api/batch/flush
+Force flush the current queue (admin endpoint)
 ```
 
 ### POST /api/relay
@@ -205,10 +229,9 @@ Submit a signed request
 
 ### Compilation fails
 ```bash
-# Clear cache and reinstall
-rm -rf hardhat_cache artifacts
-npm install
-npx hardhat compile
+# Clear build cache and recompile
+rm -rf build
+npm run compile
 ```
 
 ### Deployment fails
@@ -251,7 +274,7 @@ netstat -ano | findstr :3000  # Windows
 
 For issues or questions:
 - Check Solidity contracts for inline documentation
-- Review Hardhat docs: https://hardhat.org
+- Review Truffle docs: https://trufflesuite.com/docs/truffle/
 - Ethers.js docs: https://docs.ethers.org/v6/
 
 Good luck! 🚀

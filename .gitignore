@@ -4,9 +4,8 @@ node_modules/
 # Environment variables
 .env
 
-# Hardhat
-hardhat_cache/
-artifacts/
+# Truffle
+build/
 
 # Build info
 *.output.json
