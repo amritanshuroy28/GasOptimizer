@@ -162,6 +162,8 @@ This system implements a **Gas Fee Optimizer and Batch Transaction System** that
 │    ├─ GET  /api/config    → Serve contract addresses from .env     │
 │    ├─ POST /api/relay     → Accept signed requests                  │
 │    ├─ GET  /api/batch/status → Queue status                        │
+│    ├─ GET  /api/gas-stats    → Gas usage analytics & history       │
+│    ├─ GET  /api/nonce/:addr  → On-chain nonce for address          │
 │    └─ POST /api/batch/flush  → Force flush queue (admin)            │
 │                                                                  │
 │  Relayer Engine (relayer.js)                                     │

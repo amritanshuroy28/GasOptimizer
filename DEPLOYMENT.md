@@ -192,6 +192,27 @@ Get current batch queue status
 
 ### POST /api/batch/flush
 Force flush the current queue (admin endpoint)
+
+### GET /api/gas-stats
+Get gas usage analytics and batch history
+```json
+{
+  "totalBatches": 5,
+  "totalTransactions": 23,
+  "totalGasUsed": "523000",
+  "totalGasSaved": "677000",
+  "averageSavingsPercent": 34,
+  "history": [...]
+}
+```
+
+### GET /api/nonce/:address
+Get on-chain nonce for a user address (for frontend sync)
+```json
+{
+  "address": "0x...",
+  "nonce": 7
+}
 ```
 
 ### POST /api/relay

@@ -207,6 +207,33 @@ app.get("/api/batch/status", (req, res) => {
     res.json(relayer.getStatus());
 });
 
+// Gas usage statistics and history
+app.get("/api/gas-stats", (req, res) => {
+    if (!relayer) {
+        return res.status(503).json({ error: "Relayer not configured" });
+    }
+    res.json(relayer.getGasStats());
+});
+
+// Get current on-chain nonce for a user address (helps frontend stay in sync)
+app.get("/api/nonce/:address", async (req, res) => {
+    if (!relayer) {
+        return res.status(503).json({ error: "Relayer not configured" });
+    }
+
+    const address = req.params.address;
+    if (!/^0x[0-9a-fA-F]{40}$/.test(address)) {
+        return res.status(400).json({ error: "Invalid address format" });
+    }
+
+    try {
+        const nonce = await relayer.getNonceForUser(address);
+        res.json({ address, nonce });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // Force flush the current queue (admin endpoint)
 app.post("/api/batch/flush", rateLimit, async (req, res) => {
     if (!relayer) {
@@ -231,8 +258,11 @@ const server = app.listen(PORT, () => {
     console.log("\nEndpoints:");
     console.log(`  GET  /                 - HTML interface`);
     console.log(`  GET  /health           - Health check`);
+    console.log(`  GET  /api/config       - Contract addresses`);
     console.log(`  POST /api/relay        - Submit signed transaction`);
     console.log(`  GET  /api/batch/status - Queue status`);
+    console.log(`  GET  /api/gas-stats    - Gas usage analytics`);
+    console.log(`  GET  /api/nonce/:addr  - On-chain nonce for address`);
     console.log(`  POST /api/batch/flush  - Force flush queue\n`);
 });
 

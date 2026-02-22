@@ -233,6 +233,33 @@ contract BatchExecutor {
         emit BatchExecuted(msg.sender, len, successCount, skippedCount, totalGas);
     }
 
+    // ─── Nonce Recovery ─────────────────────────────────────────
+    //
+    // Solves the sequential-nonce blockage problem:
+    // If nonce N fails verification, nonces N+1, N+2… are stuck.
+    // Users can call incrementNonce() to skip their current nonce
+    // and unblock the queue.  incrementNonceBy() allows skipping
+    // multiple stuck nonces in one call (e.g. if the relayer queued
+    // several requests that all expired).
+
+    event NonceIncremented(address indexed user, uint256 oldNonce, uint256 newNonce);
+
+    /// @notice Skip the caller's current nonce to unblock subsequent requests.
+    function incrementNonce() external {
+        uint256 oldNonce = nonces[msg.sender];
+        nonces[msg.sender] = oldNonce + 1;
+        emit NonceIncremented(msg.sender, oldNonce, oldNonce + 1);
+    }
+
+    /// @notice Skip multiple nonces at once (e.g. clear a backlog of expired requests).
+    /// @param count Number of nonces to skip (must be 1-50 to prevent misuse).
+    function incrementNonceBy(uint256 count) external {
+        require(count > 0 && count <= 50, "BatchExecutor: count must be 1-50");
+        uint256 oldNonce = nonces[msg.sender];
+        nonces[msg.sender] = oldNonce + count;
+        emit NonceIncremented(msg.sender, oldNonce, oldNonce + count);
+    }
+
     // ─── Admin Functions ─────────────────────────────────────────
 
     function setMinBatchSize(uint256 _minBatchSize) external onlyOwner {

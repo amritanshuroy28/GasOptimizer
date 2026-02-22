@@ -361,14 +361,25 @@ Open http://localhost:3000
 npm test
 ```
 
-This runs `test/gas-benchmark.js` on the Ganache network (note: the test file must be created at `test/gas-benchmark.js` before running). The test suite validates:
+This runs `test/gas-benchmark.js` on the Ganache network. **27 tests** across 8 categories:
 
-1. **Signature Verification** — EIP-712 signatures verified on-chain; wrong signer rejected
-2. **Nonce Replay Protection** — Executed request cannot be replayed; nonce increments
-3. **Batch Execution** — N transfers executed in single TX with measured gas savings
-4. **Gas Sponsorship** — Deposit, estimate, claim, and daily limit tracking
-5. **Multi-Size Benchmark** — Gas comparison for batch sizes 2, 5, 10
-6. **Failure Handling** — Empty batch, mismatched arrays, wrong nonce all revert correctly
+1. **Signature Verification** — Valid EIP-712 signatures accepted; wrong-signer and wrong-nonce rejected
+2. **Nonce Replay Protection & Recovery** — Replays blocked; `incrementNonce()` and `incrementNonceBy()` tested
+3. **Request Deadline / Expiry** — Future deadlines accepted; past deadlines rejected; `deadline=0` (no expiry) works
+4. **Batch Execution** — Single-request and multi-request (3-tx) batches execute correctly
+5. **Gas Sponsorship** — Deposit, estimate, claim, cap enforcement, daily limits, and pause tested
+6. **Multi-Size Gas Benchmark** — Actual gas measured for batch sizes 2, 5, 10 vs. direct transfers
+7. **Failure Handling** — Empty batch, mismatched arrays, wrong nonce all revert correctly
+8. **Partial Failure Resilience** — Expired requests are skipped without killing the entire batch
+
+### Gas Benchmark Results (from tests)
+
+| Batch Size | Total Gas | Gas/Tx | Savings vs Direct |
+|-----------|-----------|--------|--------------------|
+| 1 (direct) | 34,645 | 34,645 | — |
+| 2 | 80,703 | 40,352 | -16% (overhead) |
+| 5 | 135,738 | 27,148 | 22% |
+| 10 | 227,439 | 22,744 | 34% |
 
 ---
 
@@ -384,13 +395,24 @@ This runs `test/gas-benchmark.js` on the Ganache network (note: the test file mu
 
 ### Limitations
 
-1. **Sequential nonces** — If a user's request at nonce N fails verification, all subsequent requests (N+1, N+2...) are blocked until nonce N is consumed
+1. ~~**Sequential nonces**~~ **Resolved** — `incrementNonce()` and `incrementNonceBy(count)` allow users to skip stuck nonces and unblock the queue
 2. **Single relayer** — No multi-relayer coordination or failover (would need relayer registry and nonce reservation)
 3. **Testnet only** — Not audited for mainnet deployment; uses simplified patterns
 4. **Token-specific** — SampleToken must be deployed with BatchExecutor as trusted forwarder; existing tokens need wrapper contracts
-5. **Gas estimation** — Theoretical savings assume uniform ERC-20 transfers; actual savings vary with calldata complexity
+5. ~~**Gas estimation**~~ **Improved** — Real gas tracking via `GET /api/gas-stats` endpoint; nonce sync via `GET /api/nonce/:address`; actual measurements in test suite
 6. **MEV exposure** — Batch transactions on mainnet could be sandwich-attacked; needs private mempool or Flashbots integration
 7. **Day-based resets** — GasSponsor daily limits use `block.timestamp / 1 days`, which can vary ±15 seconds
+
+### Improvements Made
+
+| Issue | Solution |
+|-------|----------|
+| Sequential nonces block queue | Added `incrementNonce()` and `incrementNonceBy(count)` to BatchExecutor; UI "Skip Nonce" button |
+| No test suite | Created 27-test suite covering signatures, nonces, deadlines, batching, sponsorship, gas benchmarks, and failure handling |
+| Theoretical-only gas estimation | Added `GET /api/gas-stats` endpoint with real gas history, `GET /api/nonce/:address` for nonce sync |
+| Frontend deadline bug | Fixed frontend ABI and ForwardRequest types to include `deadline` field (was missing, causing selector mismatch) |
+| Stale nonces accepted by relayer | Added early nonce-sync check in relayer to reject requests with already-consumed nonces |
+| No nonce recovery UI | Added "Skip Nonce" button in frontend status bar |
 
 ### Future Improvements
 
@@ -406,15 +428,17 @@ This runs `test/gas-benchmark.js` on the Ganache network (note: the test file mu
 
 ```
 ├── contracts/                     # Solidity smart contracts
-│   ├── BatchExecutor.sol          # Core: EIP-712 verification & batch execution
-│   ├── GasSponsor.sol             # Gas sponsorship pool with constraints
+│   ├── BatchExecutor.sol          # Core: EIP-712 verification, batch execution, nonce recovery
+│   ├── GasSponsor.sol             # Gas sponsorship pool with 6-layer constraints
 │   └── SampleToken.sol            # Meta-tx-aware ERC-20 token
+├── test/                          # Truffle test suite
+│   └── gas-benchmark.js           # 27 tests: signatures, nonces, batching, gas benchmarks
 ├── migrations/                    # Truffle migration scripts
 │   ├── 1_initial_migration.js     # Required initial migration
 │   └── 2_deploy_contracts.js      # Deploys all contracts, updates .env
 ├── build/contracts/               # Compiled contract ABIs (generated by Truffle)
-├── server.js                      # Express server (frontend + API + /api/config)
-├── relayer.js                     # Batch queue & execution engine
+├── server.js                      # Express server (frontend + API + config + gas-stats)
+├── relayer.js                     # Batch queue, execution engine, gas history tracking
 ├── signer.js                      # EIP-712 signing utilities
 ├── index.html                     # Full frontend application
 ├── truffle-config.js              # Truffle configuration (Ganache network)
@@ -432,9 +456,9 @@ This runs `test/gas-benchmark.js` on the Ganache network (note: the test file mu
 
 | Contract | Address |
 |----------|--------|
-| **BatchExecutor** | `0x2149cf497931B6DFf1150A6b3eB936dEd31C41e1` |
-| **SampleToken** | `0xF1236ECC62A9Ac13B04372B597cE2410D46a02a5` |
-| **GasSponsor** | `0xD4c7B2dF5793B45857Fd4D3e409cde9073C108da` |
+| **BatchExecutor** | `0x2041C69a346e35c40d2b4E697A87aa2646350255` |
+| **SampleToken** | `0xee8065cAeD152c60b380bE71A3107896055Ac526` |
+| **GasSponsor** | `0x2D3D0F91812aa3C8C5fE7313D4d2Ee93eFa36544` |
 
 **Network:** Ganache (chainId 1337, `http://127.0.0.1:7545`)
 **Toolchain:** Truffle v5.11.5 + Solidity 0.8.20

@@ -59,6 +59,10 @@ class Relayer {
 
         // Track retry count per batch attempt
         this._retryCount = 0;
+
+        // Gas history tracking — stores last N batch results for analytics
+        this._gasHistory = [];
+        this._maxHistorySize = 100;
     }
 
     /**
@@ -72,6 +76,7 @@ class Relayer {
      * Add a signed request to the queue.
      * Validates signature on-chain before accepting.
      * Rejects duplicates by (from, nonce).
+     * Auto-syncs nonce check to detect stale requests early.
      */
     async addRequest(request, signature) {
         // Dedup check (fast, no RPC call)
@@ -86,6 +91,16 @@ class Relayer {
             if (block && block.timestamp > request.deadline) {
                 throw new Error("Request has expired (deadline passed)");
             }
+        }
+
+        // Nonce sync check — reject obviously stale requests before
+        // hitting the (more expensive) on-chain verify call
+        const onChainNonce = Number(await this.batchExecutor.getNonce(request.from));
+        if (Number(request.nonce) < onChainNonce) {
+            throw new Error(
+                `Stale nonce: request has nonce ${request.nonce} but on-chain nonce is ${onChainNonce}. ` +
+                `This request was likely already executed or the nonce was skipped.`
+            );
         }
 
         // Verify the signature on-chain before accepting
@@ -242,12 +257,39 @@ class Relayer {
                 }
             }
 
+            // Record gas history for analytics
+            const individualEstimate = BigInt(requests.length) * 52000n;
+            const batchGas = BigInt(receipt.gasUsed);
+            const savings = individualEstimate > batchGas
+                ? Number((individualEstimate - batchGas) * 100n / individualEstimate)
+                : 0;
+
+            this._gasHistory.push({
+                timestamp: new Date().toISOString(),
+                txHash: tx.hash,
+                blockNumber: receipt.blockNumber,
+                batchSize: requests.length,
+                gasUsed: receipt.gasUsed.toString(),
+                individualEstimate: individualEstimate.toString(),
+                savingsPercent: savings,
+                gasCostEth: effectiveGasPrice
+                    ? ethers.formatEther(receipt.gasUsed * effectiveGasPrice)
+                    : null,
+                users: [...new Set(requests.map(req => req.from))]
+            });
+            if (this._gasHistory.length > this._maxHistorySize) {
+                this._gasHistory.shift();
+            }
+
             return {
                 status: "executed",
                 txHash: tx.hash,
                 blockNumber: receipt.blockNumber,
                 gasUsed: receipt.gasUsed.toString(),
-                batchSize: requests.length
+                batchSize: requests.length,
+                gasCostEth: effectiveGasPrice
+                    ? ethers.formatEther(receipt.gasUsed * effectiveGasPrice)
+                    : null
             };
 
         } catch (error) {
@@ -352,6 +394,55 @@ class Relayer {
             maxBatchSize: this.maxBatchSize,
             retryCount: this._retryCount
         };
+    }
+
+    /**
+     * Get gas usage history for analytics.
+     * Returns aggregate stats + recent batch records.
+     */
+    getGasStats() {
+        if (this._gasHistory.length === 0) {
+            return {
+                totalBatches: 0,
+                totalTransactions: 0,
+                totalGasSaved: "0",
+                averageSavingsPercent: 0,
+                history: []
+            };
+        }
+
+        let totalTx = 0;
+        let totalGasUsed = 0n;
+        let totalIndividualEstimate = 0n;
+        let totalSavingsPercent = 0;
+
+        for (const entry of this._gasHistory) {
+            totalTx += entry.batchSize;
+            totalGasUsed += BigInt(entry.gasUsed);
+            totalIndividualEstimate += BigInt(entry.individualEstimate);
+            totalSavingsPercent += entry.savingsPercent;
+        }
+
+        const totalGasSaved = totalIndividualEstimate > totalGasUsed
+            ? (totalIndividualEstimate - totalGasUsed).toString()
+            : "0";
+
+        return {
+            totalBatches: this._gasHistory.length,
+            totalTransactions: totalTx,
+            totalGasUsed: totalGasUsed.toString(),
+            totalGasSaved,
+            averageSavingsPercent: Math.round(totalSavingsPercent / this._gasHistory.length),
+            history: this._gasHistory.slice(-20) // Last 20 entries
+        };
+    }
+
+    /**
+     * Get the current on-chain nonce for a user.
+     * Useful for the frontend to sync before signing.
+     */
+    async getNonceForUser(userAddress) {
+        return Number(await this.batchExecutor.getNonce(userAddress));
     }
 }
 

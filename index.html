@@ -1248,6 +1248,7 @@
         <div class="status-card">
             <div class="status-label">Your Nonce</div>
             <div class="status-value" id="nonceStatus">—</div>
+            <button onclick="skipNonce()" title="Skip stuck nonce" style="margin-top:4px;font-size:0.65rem;padding:2px 8px;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-muted);border-radius:4px;">Skip Nonce ↷</button>
         </div>
         <div class="status-card">
             <div class="status-label">Token Balance</div>
@@ -1622,9 +1623,9 @@
         chainId: 1337,  // Ganache
         chainName: "Ganache",
         rpcUrl: "http://127.0.0.1:7545",
-        batchExecutorAddress: "0x2149cf497931B6DFf1150A6b3eB936dEd31C41e1",
-        sampleTokenAddress: "0xF1236ECC62A9Ac13B04372B597cE2410D46a02a5",
-        gasSponsorAddress: "0xD4c7B2dF5793B45857Fd4D3e409cde9073C108da",
+        batchExecutorAddress: "0x2041C69a346e35c40d2b4E697A87aa2646350255",
+        sampleTokenAddress: "0xee8065cAeD152c60b380bE71A3107896055Ac526",
+        gasSponsorAddress: "0x2D3D0F91812aa3C8C5fE7313D4d2Ee93eFa36544",
     };
 
     // Fetch live contract addresses from the server so we stay in sync
@@ -1648,9 +1649,10 @@
     // ═══════════════════════════════════════════════════════════════
 
     const BATCH_EXECUTOR_ABI = [
-        "function executeBatch(tuple(address from, address to, uint256 value, uint256 gas, uint256 nonce, bytes data)[] requests, bytes[] signatures) external payable returns (bool[])",
-        "function verify(tuple(address from, address to, uint256 value, uint256 gas, uint256 nonce, bytes data) req, bytes signature) external view returns (bool)",
-        "function getNonce(address from) external view returns (uint256)"
+        "function executeBatch(tuple(address from, address to, uint256 value, uint256 gas, uint256 nonce, uint256 deadline, bytes data)[] requests, bytes[] signatures) external payable returns (bool[])",
+        "function verify(tuple(address from, address to, uint256 value, uint256 gas, uint256 nonce, uint256 deadline, bytes data) req, bytes signature) external view returns (bool)",
+        "function getNonce(address from) external view returns (uint256)",
+        "function incrementNonce() external"
     ];
 
     const TOKEN_ABI = [
@@ -1681,6 +1683,7 @@
             { name: "value", type: "uint256" },
             { name: "gas", type: "uint256" },
             { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" },
             { name: "data", type: "bytes" }
         ]
     };
@@ -1818,8 +1821,18 @@
 
     async function refreshStatus() {
         try {
+            // Sync nonce from contract — also cross-check with server
             currentNonce = Number(await batchExecutor.getNonce(userAddress));
             document.getElementById("nonceStatus").textContent = currentNonce;
+
+            // Cross-check nonce with relayer server for consistency
+            try {
+                const resp = await fetch(`/api/nonce/${userAddress}`);
+                const data = await resp.json();
+                if (data.nonce !== undefined && data.nonce !== currentNonce) {
+                    log("warn", `Nonce mismatch: contract=${currentNonce}, server=${data.nonce}. Using contract value.`);
+                }
+            } catch (_) { /* server may be down — contract is source of truth */ }
 
             const balance = await tokenContract.balanceOf(userAddress);
             const decimals = await tokenContract.decimals();
@@ -1830,6 +1843,26 @@
             document.getElementById("nonceStatus").textContent = "0";
             document.getElementById("balanceStatus").textContent = "—";
             log("warn", "Could not read contracts. Are they deployed?");
+        }
+    }
+
+    /**
+     * Skip the user's current nonce on-chain.
+     * Used to unblock the queue when a request is stuck (e.g. expired deadline).
+     */
+    async function skipNonce() {
+        if (!signer || !batchExecutor) {
+            log("error", "Connect your wallet first.");
+            return;
+        }
+        try {
+            log("info", `Skipping nonce ${currentNonce}...`);
+            const tx = await batchExecutor.incrementNonce();
+            await tx.wait();
+            log("success", `Nonce skipped. New nonce: ${currentNonce + 1}`);
+            await refreshStatus();
+        } catch (err) {
+            log("error", `Failed to skip nonce: ${err.message}`);
         }
     }
 
@@ -1969,6 +2002,7 @@
                     value: action.value,
                     gas: action.gasLimit,
                     nonce: currentNonce + i,
+                    deadline: Math.floor(Date.now() / 1000) + 300, // 5 min expiry
                     data: action.data
                 };
 
