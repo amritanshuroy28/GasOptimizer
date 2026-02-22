@@ -2,7 +2,7 @@
 
 > A complete decentralized application demonstrating gas optimization through **transaction batching**, **EIP-712 meta-transactions**, and **sponsorship pool mechanisms** on a local Ganache network.
 
-**Built for [Web3Assam](https://www.web3assam.org/) Hackathon** — Driving blockchain education and adoption across Northeast India.
+**Built for [Web3Assam](https://www.web3assam.org/)** — Driving blockchain education and adoption across Northeast India.
 
 ---
 
