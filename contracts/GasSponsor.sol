@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
 /**
  * @title GasSponsor
@@ -32,7 +32,8 @@ contract GasSponsor {
 
     address public owner;
     bool public paused;
-    bool private _locked; // Reentrancy guard
+    // Reentrancy guard uses transient storage (EIP-1153) — saves ~2,900 gas
+    // vs. cold SLOAD/SSTORE by using TLOAD/TSTORE which auto-clear at tx end
 
     // Relayer management
     mapping(address => bool) public whitelistedRelayers;
@@ -112,10 +113,14 @@ contract GasSponsor {
     }
 
     modifier nonReentrant() {
-        if (_locked) revert Reentrancy();
-        _locked = true;
+        assembly {
+            if tload(0) { revert(0, 0) }
+            tstore(0, 1)
+        }
         _;
-        _locked = false;
+        assembly {
+            tstore(0, 0)
+        }
     }
 
     // ─── Constructor ─────────────────────────────────────────────

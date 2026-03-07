@@ -54,25 +54,36 @@ This system implements a **Gas Fee Optimizer and Batch Transaction System** that
 │    DOMAIN_SEPARATOR  (bytes32) — EIP-712 domain hash    │
 │    REQUEST_TYPEHASH  (bytes32) — struct type hash       │
 │    nonces            (mapping) — per-user nonce counter │
+│    minBatchSize      (uint256) — iBatch MinX policy     │
+│    owner             (address) — admin address          │
 │                                                         │
 │  Core Functions:                                        │
 │    verify(req, sig) → bool                              │
+│      ├─ Check deadline (0 = no expiry)                  │
 │      ├─ Hash request via EIP-712 encoding               │
 │      ├─ Recover signer via ecrecover                    │
 │      └─ Check signer == req.from && nonce match         │
 │                                                         │
 │    executeBatch(requests[], signatures[]) → bool[]      │
+│      ├─ Check min/max batch size                        │
 │      ├─ For each (request, signature):                  │
-│      │   ├─ verify(request, signature)                  │
+│      │   ├─ Check deadline (skip if expired)            │
+│      │   ├─ Inline verify (skip if invalid)             │
 │      │   ├─ Increment nonce (pre-execution)             │
 │      │   └─ Execute: req.to.call(req.data ++ req.from)  │
 │      └─ Emit BatchExecuted event                        │
+│                                                         │
+│  Nonce Recovery:                                        │
+│    incrementNonce()       — Skip 1 stuck nonce          │
+│    incrementNonceBy(n)    — Skip n stuck nonces (1-50)  │
 │                                                         │
 │  Security:                                              │
 │    - EIP-712 domain binding (chain + contract)          │
 │    - Sequential nonce enforcement                       │
 │    - Sender identity appended to calldata               │
 │    - Pre-execution nonce increment (reentrancy guard)   │
+│    - Batch deadline prevents stale request execution    │
+│    - Graceful partial failures (skip, don't revert)     │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 ```
@@ -169,7 +180,10 @@ This system implements a **Gas Fee Optimizer and Batch Transaction System** that
 │  Relayer Engine (relayer.js)                                     │
 │    ├─ Request Queue    → pendingRequests[], pendingSignatures[]  │
 │    ├─ Auto-Flush Timer → Submits batch every N seconds           │
+│    ├─ Min Batch Size   → iBatch MinX policy (configurable)      │
 │    ├─ Max Batch Size   → Flushes immediately when queue is full  │
+│    ├─ Pre-Filter       → Verifies batch before submission       │
+│    ├─ Nonce Sync       → Rejects stale nonces before queuing    │
 │    └─ Retry Logic      → Re-queues failed requests               │
 │                                                                  │
 │  Signer Utility (signer.js)                                     │
@@ -342,7 +356,8 @@ DOMAIN_SEPARATOR = keccak256(abi.encode(
 bytes32 structHash = keccak256(abi.encode(
     REQUEST_TYPEHASH,
     req.from, req.to, req.value, req.gas, req.nonce,
-    keccak256(req.data)  // Dynamic bytes are hashed
+    req.deadline,                // Request expiry (0 = no expiry)
+    keccak256(req.data)          // Dynamic bytes are hashed
 ));
 
 bytes32 digest = keccak256(abi.encodePacked(
@@ -366,9 +381,10 @@ On-chain: ecrecover(digest, v, r, s) → recovered_address
         ▼
 Check: recovered_address == request.from ?
 Check: request.nonce == nonces[request.from] ?
+Check: request.deadline == 0 || block.timestamp <= request.deadline ?
         │
         ▼
-If both pass → execute the request
+If all pass → execute the request
 ```
 
 ---

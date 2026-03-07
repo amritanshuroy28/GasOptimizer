@@ -68,7 +68,7 @@ This project addresses these issues by building a **Gas Fee Optimizer and Batch 
 
 | Component | Type | Role |
 |-----------|------|------|
-| **BatchExecutor** | Solidity Contract | Verifies EIP-712 signatures, tracks nonces, executes batched calls |
+| **BatchExecutor** | Solidity Contract | Verifies EIP-712 signatures, tracks nonces, enforces deadlines, executes batched calls |
 | **GasSponsor** | Solidity Contract | Manages sponsorship pool with 6-layer constraint system |
 | **SampleToken** | Solidity Contract | Meta-tx-aware ERC-20 (trusted forwarder pattern) |
 | **Relayer** | Node.js Server | Queues signed requests, auto-flushes batches on timer |
@@ -111,12 +111,13 @@ The core contract implementing batched meta-transaction execution.
 **ForwardRequest Struct:**
 ```solidity
 struct ForwardRequest {
-    address from;    // Original sender (user)
-    address to;      // Target contract
-    uint256 value;   // ETH to send (usually 0)
-    uint256 gas;     // Gas limit for this sub-call
-    uint256 nonce;   // User's sequential nonce
-    bytes data;      // Encoded function call
+    address from;      // Original sender (user)
+    address to;        // Target contract
+    uint256 value;     // ETH to send (usually 0)
+    uint256 gas;       // Gas limit for this sub-call
+    uint256 nonce;     // User's sequential nonce (replay protection)
+    uint256 deadline;  // Block timestamp after which request expires (0 = no expiry)
+    bytes data;        // Encoded function call
 }
 ```
 
@@ -163,13 +164,28 @@ Meta-transaction-aware ERC-20 implementing the trusted forwarder pattern.
 ### On-Chain Execution
 
 ```solidity
-// BatchExecutor verifies each signature:
-bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
-address signer = ecrecover(digest, v, r, s);
-require(signer == request.from && request.nonce == nonces[request.from]);
+// BatchExecutor verifies each signature (inlined for gas savings):
 
-// Then executes with sender identity appended:
-request.to.call{gas: request.gas}(abi.encodePacked(request.data, request.from));
+// 1. Deadline check (cheapest gate)
+if (req.deadline != 0 && block.timestamp > req.deadline) { skip; }
+
+// 2. EIP-712 hash + ecrecover
+bytes32 structHash = keccak256(abi.encode(
+    REQUEST_TYPEHASH,
+    req.from, req.to, req.value, req.gas, req.nonce, req.deadline,
+    keccak256(req.data)
+));
+bytes32 digest = keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
+address signer = _recoverSigner(digest, signature);
+
+// 3. Verify signer and nonce
+if (signer != req.from || req.nonce != nonces[req.from]) { skip; }
+
+// 4. Increment nonce BEFORE execution (reentrancy guard)
+nonces[req.from] = currentNonce + 1;
+
+// 5. Execute with sender identity appended (ERC-2771 pattern)
+req.to.call{gas: req.gas, value: req.value}(abi.encodePacked(req.data, req.from));
 ```
 
 ### EIP-712 Domain
@@ -361,14 +377,15 @@ Open http://localhost:3000
 npm test
 ```
 
-This runs `test/gas-benchmark.js` on the Ganache network. **27 tests** across 8 categories:
+This runs `test/gas-benchmark.js` on the Ganache network. **31 tests** across 9 categories:
 
 1. **Signature Verification** — Valid EIP-712 signatures accepted; wrong-signer and wrong-nonce rejected
 2. **Nonce Replay Protection & Recovery** — Replays blocked; `incrementNonce()` and `incrementNonceBy()` tested
 3. **Request Deadline / Expiry** — Future deadlines accepted; past deadlines rejected; `deadline=0` (no expiry) works
 4. **Batch Execution** — Single-request and multi-request (3-tx) batches execute correctly
 5. **Gas Sponsorship** — Deposit, estimate, claim, cap enforcement, daily limits, and pause tested
-6. **Multi-Size Gas Benchmark** — Actual gas measured for batch sizes 2, 5, 10 vs. direct transfers
+6. **Multi-Size Gas Benchmark** — Actual gas measured for batch sizes 2, 5, 10 vs. direct transfers (same recipient)
+6b. **Gas Benchmark — Different Recipients** — Actual gas measured for batch sizes 2, 5, 10 with different recipient addresses
 7. **Failure Handling** — Empty batch, mismatched arrays, wrong nonce all revert correctly
 8. **Partial Failure Resilience** — Expired requests are skipped without killing the entire batch
 
@@ -408,7 +425,7 @@ This runs `test/gas-benchmark.js` on the Ganache network. **27 tests** across 8 
 | Issue | Solution |
 |-------|----------|
 | Sequential nonces block queue | Added `incrementNonce()` and `incrementNonceBy(count)` to BatchExecutor; UI "Skip Nonce" button |
-| No test suite | Created 27-test suite covering signatures, nonces, deadlines, batching, sponsorship, gas benchmarks, and failure handling |
+| No test suite | Created 31-test suite covering signatures, nonces, deadlines, batching, sponsorship, gas benchmarks (same & different recipients), and failure handling |
 | Theoretical-only gas estimation | Added `GET /api/gas-stats` endpoint with real gas history, `GET /api/nonce/:address` for nonce sync |
 | Frontend deadline bug | Fixed frontend ABI and ForwardRequest types to include `deadline` field (was missing, causing selector mismatch) |
 | Stale nonces accepted by relayer | Added early nonce-sync check in relayer to reject requests with already-consumed nonces |
@@ -432,7 +449,7 @@ This runs `test/gas-benchmark.js` on the Ganache network. **27 tests** across 8 
 │   ├── GasSponsor.sol             # Gas sponsorship pool with 6-layer constraints
 │   └── SampleToken.sol            # Meta-tx-aware ERC-20 token
 ├── test/                          # Truffle test suite
-│   └── gas-benchmark.js           # 27 tests: signatures, nonces, batching, gas benchmarks
+│   └── gas-benchmark.js           # 31 tests: signatures, nonces, deadlines, batching, gas benchmarks
 ├── migrations/                    # Truffle migration scripts
 │   ├── 1_initial_migration.js     # Required initial migration
 │   └── 2_deploy_contracts.js      # Deploys all contracts, updates .env
@@ -461,7 +478,7 @@ This runs `test/gas-benchmark.js` on the Ganache network. **27 tests** across 8 
 | **GasSponsor** | `0x2D3D0F91812aa3C8C5fE7313D4d2Ee93eFa36544` |
 
 **Network:** Ganache (chainId 1337, `http://127.0.0.1:7545`)
-**Toolchain:** Truffle v5.11.5 + Solidity 0.8.20
+**Toolchain:** Truffle v5.11.5 + Solidity 0.8.24
 **Local Server:** `npm start` → http://localhost:3000
 
 ---

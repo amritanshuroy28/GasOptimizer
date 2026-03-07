@@ -544,6 +544,103 @@ contract("Gas Optimizer — Full Test Suite", function (accounts) {
     });
 
     // ═════════════════════════════════════════════════════════════
+    //  6b. GAS BENCHMARK — DIFFERENT RECIPIENTS
+    // ═════════════════════════════════════════════════════════════
+
+    describe("6b. Gas Benchmark — Different Recipients", function () {
+        const diffResults = [];
+
+        async function measureBatchDiffRecipients(batchSize) {
+            // Fund user1 with enough tokens
+            const needed = web3.utils.toWei((batchSize * 1).toString(), "ether");
+            const currentBal = await sampleToken.balanceOf(user1);
+            if (web3.utils.toBN(currentBal).lt(web3.utils.toBN(needed))) {
+                await sampleToken.transfer(user1, web3.utils.toWei("50000", "ether"), {
+                    from: deployer,
+                });
+            }
+
+            // Use different recipient accounts for each transfer
+            const recipients = accounts.slice(3, 3 + batchSize);
+            let currentNonce = (await batchExecutor.getNonce(user1)).toNumber();
+            const requests = [];
+            const signatures = [];
+
+            for (let i = 0; i < batchSize; i++) {
+                const recipient = recipients[i % recipients.length];
+                const data = encodeTransfer(sampleToken, recipient, ONE_TOKEN);
+                const request = buildRequest(
+                    user1, sampleToken.address, currentNonce + i, data
+                );
+                const sig = await signRequest(
+                    user1, request, batchExecutor.address, chainId
+                );
+                requests.push(request);
+                signatures.push(sig);
+            }
+
+            const tx = await batchExecutor.executeBatch(requests, signatures, {
+                from: relayer,
+            });
+
+            return tx.receipt.gasUsed;
+        }
+
+        async function measureIndividualDiffRecipient(recipient) {
+            const tx = await sampleToken.transfer(recipient, ONE_TOKEN, {
+                from: user1,
+            });
+            return tx.receipt.gasUsed;
+        }
+
+        it("should measure direct transfers to different addresses (baseline)", async function () {
+            // Measure two individual transfers to different addresses
+            const gas1 = await measureIndividualDiffRecipient(user2);
+            const gas2 = await measureIndividualDiffRecipient(user3);
+            const avgGas = Math.ceil((gas1 + gas2) / 2);
+            diffResults.push({ size: 1, type: "direct", gasUsed: avgGas, perTx: avgGas });
+            console.log(`      Avg direct transfer (diff recipients): ${avgGas} gas`);
+        });
+
+        for (const size of [2, 5, 10]) {
+            it(`should measure batch of ${size} transfers to different addresses`, async function () {
+                const gasUsed = await measureBatchDiffRecipients(size);
+                const perTx = Math.ceil(gasUsed / size);
+                diffResults.push({ size, type: "batched-diff", gasUsed, perTx });
+                console.log(
+                    `      Batch of ${size} (diff recipients): ${gasUsed} gas total, ${perTx} gas/tx`
+                );
+            });
+        }
+
+        after(function () {
+            if (diffResults.length === 0) return;
+
+            const directGas = diffResults.find((r) => r.type === "direct");
+            if (!directGas) return;
+
+            console.log("\n  ┌──────────────────────────────────────────────────────────────────┐");
+            console.log("  │          GAS BENCHMARK — DIFFERENT RECIPIENTS                    │");
+            console.log("  ├──────────┬──────────────┬──────────────┬──────────────────────── │");
+            console.log("  │  Size    │  Total Gas   │  Gas/Tx      │  Savings vs Direct      │");
+            console.log("  ├──────────┼──────────────┼──────────────┼──────────────────────── │");
+
+            for (const r of diffResults.filter((r) => r.type === "batched-diff")) {
+                const individualCost = directGas.gasUsed * r.size;
+                const savings = Math.round(
+                    ((individualCost - r.gasUsed) / individualCost) * 100
+                );
+                const sign = savings >= 0 ? "" : "";
+                console.log(
+                    `  │  ${String(r.size).padEnd(6)}  │  ${String(r.gasUsed).padEnd(10)}  │  ${String(r.perTx).padEnd(10)}  │  ${sign}${savings}%`.padEnd(67) + "│"
+                );
+            }
+
+            console.log("  └──────────┴──────────────┴──────────────┴──────────────────────── ┘\n");
+        });
+    });
+
+    // ═════════════════════════════════════════════════════════════
     //  7. FAILURE HANDLING
     // ═════════════════════════════════════════════════════════════
 
@@ -641,10 +738,10 @@ contract("Gas Optimizer — Full Test Suite", function (accounts) {
             expect(batchEvent.args.successCount.toNumber()).to.equal(1);
             expect(batchEvent.args.skippedCount.toNumber()).to.equal(1);
 
-            // The expired skip reason should be "expired"
+            // The expired skip reason should be 1 (expired)
             const skipEvent = tx.logs.find((l) => l.event === "RequestSkipped");
             expect(skipEvent).to.exist;
-            expect(skipEvent.args.reason).to.equal("expired");
+            expect(skipEvent.args.reason.toNumber()).to.equal(1);
         });
     });
 });

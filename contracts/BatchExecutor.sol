@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
 /**
  * @title BatchExecutor
@@ -73,18 +73,11 @@ contract BatchExecutor {
 
     // ─── Events ──────────────────────────────────────────────────
 
-    event RequestExecuted(
-        address indexed from,
-        address indexed to,
-        uint256 nonce,
-        bool success,
-        uint256 gasUsed
-    );
-
+    /// @dev Skip reason codes: 0 = invalid signature/nonce, 1 = expired
     event RequestSkipped(
         address indexed from,
         uint256 nonce,
-        string reason
+        uint8 reason
     );
 
     event BatchExecuted(
@@ -127,17 +120,28 @@ contract BatchExecutor {
         minBatchSize = _minBatchSize > 0 ? _minBatchSize : 1;
     }
 
-    // ─── Core Function: Verify a Signature ───────────────────────
+    // ─── Core Function: Verify a Signature (external use) ──────
+    // Kept as public for external callers (relayer pre-check, UI).
+    // executeBatch() uses an inlined version to avoid duplicate nonce SLOAD.
 
     function verify(
         ForwardRequest calldata req,
         bytes calldata signature
     ) public view returns (bool) {
-        // Check deadline first (cheap check)
         if (req.deadline != 0 && block.timestamp > req.deadline) {
             return false;
         }
 
+        bytes32 digest = _hashRequest(req);
+        address signer = _recoverSigner(digest, signature);
+
+        return signer != address(0) && signer == req.from && req.nonce == nonces[req.from];
+    }
+
+    // ─── Internal: Hash a ForwardRequest (EIP-712) ───────────────
+    // Shared by verify() and executeBatch() to avoid code duplication.
+
+    function _hashRequest(ForwardRequest calldata req) internal view returns (bytes32) {
         bytes32 structHash = keccak256(
             abi.encode(
                 REQUEST_TYPEHASH,
@@ -151,41 +155,22 @@ contract BatchExecutor {
             )
         );
 
-        bytes32 digest = keccak256(
+        return keccak256(
             abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash)
         );
-
-        address signer = _recoverSigner(digest, signature);
-
-        return signer != address(0) && signer == req.from && req.nonce == nonces[req.from];
     }
 
-    // ─── Core Function: Execute a Single Request ─────────────────
-
-    function _executeRequest(
-        ForwardRequest calldata req
-    ) internal returns (bool success, uint256 gasUsedByCall) {
-        // Increment nonce BEFORE execution (prevents reentrancy-based reuse)
-        nonces[req.from] = req.nonce + 1;
-
-        // Measure gas for this sub-call
-        uint256 gasBefore = gasleft();
-
-        // Execute the call with sender identity appended (ERC-2771 pattern)
-        (success, ) = req.to.call{gas: req.gas, value: req.value}(
-            abi.encodePacked(req.data, req.from)
-        );
-
-        gasUsedByCall = gasBefore - gasleft();
-
-        emit RequestExecuted(req.from, req.to, req.nonce, success, gasUsedByCall);
-    }
-
-    // ─── Core Function: Execute a Batch ──────────────────────────
+    // ─── Core Function: Execute a Batch (Optimized) ──────────────
     // THE MAIN FUNCTION the relayer calls.
-    // Takes an array of requests and signatures, verifies each, executes each.
     //
-    // KEY CHANGE (v2): Individual request failures do NOT revert the entire batch.
+    // OPTIMIZATIONS (v3):
+    //   - Inlined signature verification: eliminates duplicate nonce SLOAD
+    //     (verify reads nonces[from], then _executeRequest reads it again)
+    //   - Removed per-request RequestExecuted event: saves ~1,500 gas/request
+    //     (outcomes tracked via results[] return array + BatchExecuted summary)
+    //   - Uses continue for skip flow: avoids nested if/else branches
+    //
+    // Individual request failures do NOT revert the entire batch.
     // Invalid signatures or expired requests are SKIPPED, not reverted.
     // This follows the iBatch paper's approach where partial batches still save gas.
 
@@ -205,26 +190,47 @@ contract BatchExecutor {
         uint256 totalGas;
 
         for (uint256 i; i < len; ) {
-            // Verify signature — skip (don't revert) on failure
-            if (!verify(requests[i], signatures[i])) {
-                // Determine skip reason for logging
-                string memory reason;
-                if (requests[i].deadline != 0 && block.timestamp > requests[i].deadline) {
-                    reason = "expired";
-                } else {
-                    reason = "invalid signature or nonce";
-                }
-                emit RequestSkipped(requests[i].from, requests[i].nonce, reason);
-                skippedCount++;
-            } else {
-                // Execute the verified request
-                (bool success, uint256 gasUsed) = _executeRequest(requests[i]);
-                results[i] = success;
-                totalGas += gasUsed;
+            ForwardRequest calldata req = requests[i];
 
-                if (success) {
-                    successCount++;
-                }
+            // ── Inline verification (avoids duplicate nonce SLOAD) ──
+
+            // Deadline check first (cheapest gate)
+            if (req.deadline != 0 && block.timestamp > req.deadline) {
+                emit RequestSkipped(req.from, req.nonce, 1); // 1 = expired
+                skippedCount++;
+                unchecked { ++i; }
+                continue;
+            }
+
+            // EIP-712 hash + ecrecover
+            bytes32 digest = _hashRequest(req);
+            address signer = _recoverSigner(digest, signatures[i]);
+
+            // Nonce read ONCE — used for both verification and update
+            uint256 currentNonce = nonces[req.from];
+
+            if (signer == address(0) || signer != req.from || req.nonce != currentNonce) {
+                emit RequestSkipped(req.from, req.nonce, 0); // 0 = invalid sig/nonce
+                skippedCount++;
+                unchecked { ++i; }
+                continue;
+            }
+
+            // ── Execute verified request ──
+
+            // Increment nonce BEFORE execution (prevents reentrancy-based reuse)
+            nonces[req.from] = currentNonce + 1;
+
+            // Execute the call with sender identity appended (ERC-2771 pattern)
+            uint256 gasBefore = gasleft();
+            (bool success, ) = req.to.call{gas: req.gas, value: req.value}(
+                abi.encodePacked(req.data, req.from)
+            );
+            totalGas += gasBefore - gasleft();
+
+            results[i] = success;
+            if (success) {
+                unchecked { ++successCount; }
             }
 
             unchecked { ++i; }

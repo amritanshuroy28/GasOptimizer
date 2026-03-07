@@ -49,7 +49,7 @@ npm run compile
 ```
 
 This will:
-- Download the Solidity 0.8.20 compiler
+- Download the Solidity 0.8.24 compiler
 - Compile all contracts in `./contracts/`
 - Generate artifacts in `./build/contracts/`
 
@@ -94,6 +94,8 @@ The server will run on http://localhost:3000
 │   ├── BatchExecutor.sol      # Main batch execution contract
 │   ├── GasSponsor.sol         # Gas sponsorship pool
 │   └── SampleToken.sol        # ERC-20 token for testing
+├── test/                      # Truffle test suite
+│   └── gas-benchmark.js       # 31 tests across 9 categories
 ├── migrations/                # Truffle migration scripts
 │   ├── 1_initial_migration.js # Required initial migration
 │   └── 2_deploy_contracts.js  # Deploys all contracts, updates .env
@@ -104,6 +106,10 @@ The server will run on http://localhost:3000
 ├── signer.js                  # Offline signer utility
 ├── truffle-config.js          # Truffle configuration
 ├── package.json               # Dependencies
+├── deployment.json            # Deployed contract addresses (auto-generated)
+├── ARCHITECTURE.md            # Detailed system architecture design
+├── SETUP.md                   # Setup verification checklist
+├── README.md                  # Comprehensive project documentation
 └── .env                       # Environment variables (create this)
 ```
 
@@ -184,9 +190,10 @@ Get deployed contract addresses (auto-served from .env)
 Get current batch queue status
 ```json
 {
-  "queueLength": 3,
+  "queueSize": 3,
+  "minBatchSize": 1,
   "maxBatchSize": 10,
-  "flushIntervalMs": 15000
+  "retryCount": 0
 }
 ```
 
@@ -225,6 +232,7 @@ Submit a signed request
     "value": "0",
     "gas": "100000",
     "nonce": "0",
+    "deadline": "0",
     "data": "0x..."
   },
   "signature": "0x..."

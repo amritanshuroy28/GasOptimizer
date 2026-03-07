@@ -114,6 +114,7 @@ curl http://localhost:3000/api/config
 ### Documentation
 - `README.md` - Complete guide
 - `DEPLOYMENT.md` - Detailed deployment steps
+- `ARCHITECTURE.md` - System architecture design
 - `SETUP.md` - This file!
 
 ## Architecture Overview
@@ -221,8 +222,9 @@ After deployment, you'll have:
    - API endpoints for relayer integration
 
 3. **Gas savings**
-   - Individual txs: ~21,000 gas each
-   - Batched txs: ~6,300 gas each (70% savings!)
+   - Individual ERC-20 transfer: ~52,000 gas each (21,000 base + ~31,000 execution)
+   - Batched transfers: ~22,000-27,000 gas/tx depending on batch size
+   - Savings: ~35-65% for batch sizes of 2-10
 
 ## Possible Issues & Solutions
 
