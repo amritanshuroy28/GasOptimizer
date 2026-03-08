@@ -32,8 +32,8 @@ contract GasSponsor {
 
     address public owner;
     bool public paused;
-    // Reentrancy guard uses transient storage (EIP-1153) — saves ~2,900 gas
-    // vs. cold SLOAD/SSTORE by using TLOAD/TSTORE which auto-clear at tx end
+    // Reentrancy guard state variable
+    uint256 private _reentrancyStatus;
 
     // Relayer management
     mapping(address => bool) public whitelistedRelayers;
@@ -113,14 +113,10 @@ contract GasSponsor {
     }
 
     modifier nonReentrant() {
-        assembly {
-            if tload(0) { revert(0, 0) }
-            tstore(0, 1)
-        }
+        if (_reentrancyStatus == 1) revert Reentrancy();
+        _reentrancyStatus = 1;
         _;
-        assembly {
-            tstore(0, 0)
-        }
+        _reentrancyStatus = 0;
     }
 
     // ─── Constructor ─────────────────────────────────────────────
