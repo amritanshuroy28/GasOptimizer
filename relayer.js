@@ -20,7 +20,7 @@ const BATCH_EXECUTOR_ABI = [
     "function verify((address from, address to, uint256 value, uint256 gas, uint256 nonce, uint256 deadline, bytes data) req, bytes signature) external view returns (bool)",
     "function verifyBatch((address from, address to, uint256 value, uint256 gas, uint256 nonce, uint256 deadline, bytes data)[] requests, bytes[] signatures) external view returns (bool[])",
     "function getNonce(address from) external view returns (uint256)",
-    "event BatchExecuted(address indexed relayer, uint256 totalRequests, uint256 successCount, uint256 skippedCount, uint256 totalGasUsed)"
+    "event BatchExecuted(address indexed relayer, uint256 totalRequests, uint256 successCount)"
 ];
 
 const GAS_SPONSOR_ABI = [
@@ -258,7 +258,7 @@ class Relayer {
             }
 
             // Record gas history for analytics
-            const individualEstimate = BigInt(requests.length) * 52000n;
+            const individualEstimate = BigInt(requests.length) * 57964n;
             const batchGas = BigInt(receipt.gasUsed);
             const savings = individualEstimate > batchGas
                 ? Number((individualEstimate - batchGas) * 100n / individualEstimate)

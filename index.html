@@ -1942,7 +1942,7 @@
             return;
         }
 
-        const individualGas = n * 52000;
+        const individualGas = n * 57964;
         const batchedGas = 21000 + Math.ceil(n * 13000);
         const actualBatchedEstimate = Math.min(batchedGas, Math.floor(individualGas * 0.65));
 
@@ -2035,7 +2035,7 @@
 
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            const individualEstimate = BigInt(actions.length) * 52000n;
+            const individualEstimate = BigInt(actions.length) * 57964n;
             const savings = BigInt(individualEstimate) - BigInt(gasUsed);
             const savingsPercent = (100n * savings) / BigInt(individualEstimate);
 
