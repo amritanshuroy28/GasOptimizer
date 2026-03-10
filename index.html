@@ -1253,6 +1253,7 @@
         <div class="status-card">
             <div class="status-label">Token Balance</div>
             <div class="status-value green" id="balanceStatus">—</div>
+            <button onclick="claimFaucet()" id="faucetBtn" title="Get 100 free SMPL tokens for testing" style="margin-top:4px;font-size:0.65rem;padding:2px 8px;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-muted);border-radius:4px;">Get Test Tokens</button>
         </div>
         <div class="status-card">
             <div class="status-label">Pending Actions</div>
@@ -1848,6 +1849,43 @@
             document.getElementById("nonceStatus").textContent = "0";
             document.getElementById("balanceStatus").textContent = "—";
             log("warn", "Could not read contracts. Are they deployed?");
+        }
+    }
+
+    /**
+     * Claim test tokens from the faucet.
+     * Sends a request to /api/faucet to receive SMPL tokens for testing.
+     */
+    async function claimFaucet() {
+        if (!userAddress) {
+            log("warn", "Connect your wallet first");
+            return;
+        }
+
+        const btn = document.getElementById("faucetBtn");
+        btn.disabled = true;
+        btn.textContent = "Claiming...";
+
+        try {
+            const resp = await fetch("/api/faucet", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ address: userAddress })
+            });
+
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                throw new Error(data.error || "Faucet request failed");
+            }
+
+            log("success", `Received ${data.amount} — tx: ${data.txHash}`);
+            await refreshStatus();
+        } catch (err) {
+            log("error", `Faucet error: ${err.message}`);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = "Get Test Tokens";
         }
     }
 

@@ -12,6 +12,7 @@
 const express = require("express");
 const path = require("path");
 const dotenv = require("dotenv");
+const { ethers } = require("ethers");
 const { Relayer } = require("./relayer.js");
 
 dotenv.config();
@@ -256,6 +257,60 @@ app.post("/api/batch/flush", rateLimit, async (req, res) => {
     }
 });
 
+// ─── Token Faucet ──────────────────────────────────────────
+// Sends a small amount of SMPL tokens to any connected wallet for testing.
+// Uses the deployer wallet (which holds the initial 1M token supply).
+
+const FAUCET_AMOUNT = process.env.FAUCET_AMOUNT || "100"; // tokens per request
+const faucetCooldowns = new Map(); // address -> last claim timestamp
+const FAUCET_COOLDOWN_MS = 60_000 * 5; // 5 minutes between claims per address
+
+app.post("/api/faucet", rateLimit, async (req, res) => {
+    const { address } = req.body;
+
+    if (!address || !/^0x[0-9a-fA-F]{40}$/.test(address)) {
+        return res.status(400).json({ error: "Invalid wallet address" });
+    }
+
+    if (!process.env.DEPLOYER_PRIVATE_KEY || !process.env.SAMPLE_TOKEN_ADDRESS) {
+        return res.status(503).json({ error: "Faucet not configured. Missing DEPLOYER_PRIVATE_KEY or SAMPLE_TOKEN_ADDRESS." });
+    }
+
+    // Cooldown check
+    const lastClaim = faucetCooldowns.get(address.toLowerCase());
+    if (lastClaim && Date.now() - lastClaim < FAUCET_COOLDOWN_MS) {
+        const waitSec = Math.ceil((FAUCET_COOLDOWN_MS - (Date.now() - lastClaim)) / 1000);
+        return res.status(429).json({ error: `Please wait ${waitSec}s before claiming again.` });
+    }
+
+    try {
+        const provider = new ethers.JsonRpcProvider(RPC_URL);
+        const wallet = new ethers.Wallet(process.env.DEPLOYER_PRIVATE_KEY, provider);
+        const token = new ethers.Contract(
+            process.env.SAMPLE_TOKEN_ADDRESS,
+            ["function transfer(address to, uint256 amount) returns (bool)", "function decimals() view returns (uint8)"],
+            wallet
+        );
+
+        const decimals = await token.decimals();
+        const amount = ethers.parseUnits(FAUCET_AMOUNT, decimals);
+
+        const tx = await token.transfer(address, amount);
+        const receipt = await tx.wait();
+
+        faucetCooldowns.set(address.toLowerCase(), Date.now());
+
+        res.json({
+            status: "success",
+            amount: `${FAUCET_AMOUNT} SMPL`,
+            txHash: receipt.hash,
+        });
+    } catch (error) {
+        console.error("Faucet error:", error.message);
+        res.status(500).json({ error: "Faucet transfer failed: " + error.message });
+    }
+});
+
 // ─── Start Server ───────────────────────────────────────────
 
 const server = app.listen(PORT, () => {
@@ -268,7 +323,8 @@ const server = app.listen(PORT, () => {
     console.log(`  GET  /api/batch/status - Queue status`);
     console.log(`  GET  /api/gas-stats    - Gas usage analytics`);
     console.log(`  GET  /api/nonce/:addr  - On-chain nonce for address`);
-    console.log(`  POST /api/batch/flush  - Force flush queue\n`);
+    console.log(`  POST /api/batch/flush  - Force flush queue`);
+    console.log(`  POST /api/faucet       - Get test tokens\n`);
 });
 
 // ─── Graceful Shutdown ──────────────────────────────────────
