@@ -258,8 +258,8 @@ app.post("/api/batch/flush", rateLimit, async (req, res) => {
 });
 
 // ─── Token Faucet ──────────────────────────────────────────
-// Sends a small amount of SMPL tokens to any connected wallet for testing.
-// Uses the deployer wallet (which holds the initial 1M token supply).
+// Mints a small amount of SMPL tokens to any connected wallet for testing.
+// Uses the deployer wallet (contract owner) to call mint() — unlimited supply.
 
 const FAUCET_AMOUNT = process.env.FAUCET_AMOUNT || "100"; // tokens per request
 const faucetCooldowns = new Map(); // address -> last claim timestamp
@@ -288,14 +288,14 @@ app.post("/api/faucet", rateLimit, async (req, res) => {
         const wallet = new ethers.Wallet(process.env.DEPLOYER_PRIVATE_KEY, provider);
         const token = new ethers.Contract(
             process.env.SAMPLE_TOKEN_ADDRESS,
-            ["function transfer(address to, uint256 amount) returns (bool)", "function decimals() view returns (uint8)"],
+            ["function mint(address to, uint256 amount)", "function decimals() view returns (uint8)"],
             wallet
         );
 
         const decimals = await token.decimals();
         const amount = ethers.parseUnits(FAUCET_AMOUNT, decimals);
 
-        const tx = await token.transfer(address, amount);
+        const tx = await token.mint(address, amount);
         const receipt = await tx.wait();
 
         faucetCooldowns.set(address.toLowerCase(), Date.now());
