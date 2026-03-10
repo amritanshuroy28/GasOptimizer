@@ -31,15 +31,26 @@ contract SampleToken is ERC20 {
     /// @notice The BatchExecutor address (immutable for gas savings)
     address public immutable trustedForwarder;
 
+    /// @notice The deployer who can mint new tokens
+    address public immutable owner;
+
     error ZeroForwarder();
+    error NotOwner();
 
     constructor(
         address _trustedForwarder
     ) ERC20("SampleToken", "SMPL") {
         if (_trustedForwarder == address(0)) revert ZeroForwarder();
         trustedForwarder = _trustedForwarder;
+        owner = msg.sender;
         // Mint 1 million tokens to the deployer for testing
         _mint(msg.sender, 1_000_000 * 10 ** decimals());
+    }
+
+    /// @notice Mint new tokens (only callable by the deployer/owner)
+    function mint(address to, uint256 amount) external {
+        if (msg.sender != owner) revert NotOwner();
+        _mint(to, amount);
     }
 
     /// @notice Check if an address is the trusted forwarder (per ERC-2771 spec)
