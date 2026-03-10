@@ -271,17 +271,17 @@ Where $C_{\text{overhead}}$ includes signature verification (~3,000 gas per sig)
 
 Measured using `forge test --gas-report` (Solidity 0.8.24, optimizer 1000 runs, viaIR). Individual cost includes the 21,000 base transaction cost per transfer:
 
-| Batch Size | Individual Cost (N × 57,964) | Batched Cost (21K + internal) | Savings | Savings % |
+| Batch Size | Individual Cost (N × 58,008) | Batched Cost (21K + internal) | Savings | Savings % |
 |-----------|------------------------------|-------------------------------|---------|-----------|
-| 1 | 57,964 | 57,964 | 0 | 0% |
-| 2 | 115,928 | 99,406 | 16,522 | 14% |
-| 5 | 289,820 | 134,022 | 155,798 | 54% |
-| 10 | 579,640 | 191,798 | 387,842 | 67% |
-| 20 | 1,159,280 | ~342,000 | ~817,000 | ~70% |
+| 1 | 58,008 | 58,008 | 0 | 0% |
+| 2 | 116,016 | 99,494 | 16,522 | 14% |
+| 5 | 290,040 | 134,242 | 155,798 | 54% |
+| 10 | 580,080 | 192,238 | 387,842 | 67% |
+| 20 | 1,160,160 | ~308,000 | ~852,000 | ~73% |
 
-The savings converge toward ~70% as batch size increases, following:
+The savings converge toward ~80% as batch size increases, following:
 
-$$\text{Savings\%} \approx 1 - \frac{21{,}000 + N \times C_{\text{per\_request}}}{N \times 57{,}964}$$
+$$\text{Savings\%} \approx 1 - \frac{21{,}000 + N \times C_{\text{per\_request}}}{N \times 58{,}008}$$
 
 #### 4.3 Calldata Gas Considerations
 

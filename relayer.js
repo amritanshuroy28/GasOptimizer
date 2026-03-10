@@ -258,7 +258,7 @@ class Relayer {
             }
 
             // Record gas history for analytics
-            const individualEstimate = BigInt(requests.length) * 57964n;
+            const individualEstimate = BigInt(requests.length) * 58008n;
             const batchGas = BigInt(receipt.gasUsed);
             const savings = individualEstimate > batchGas
                 ? Number((individualEstimate - batchGas) * 100n / individualEstimate)

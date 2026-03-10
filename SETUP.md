@@ -208,10 +208,10 @@ After deployment, you'll have:
    - API endpoints for relayer integration
 
 3. **Gas savings** (measured by `forge test --gas-report`, including 21K base cost)
-   - Single direct transfer: ~57,964 gas (36,964 execution + 21,000 base)
-   - Batch of 2: ~49,703 gas/tx (14% savings)
-   - Batch of 5: ~26,804 gas/tx (54% savings)
-   - Batch of 10: ~19,180 gas/tx (67% savings)
+   - Single direct transfer: ~58,008 gas (37,008 execution + 21,000 base)
+   - Batch of 2: ~49,747 gas/tx (14% savings)
+   - Batch of 5: ~26,848 gas/tx (54% savings)
+   - Batch of 10: ~19,224 gas/tx (67% savings)
 
 ## Network Info
 

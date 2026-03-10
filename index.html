@@ -1531,11 +1531,11 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td>1 (direct)</td><td>57,964</td><td>57,964</td><td>57,964</td><td class="highlight">--</td></tr>
-                    <tr><td>2 transfers</td><td>115,928</td><td>99,406</td><td>49,703</td><td class="highlight">14%</td></tr>
-                    <tr><td>5 transfers</td><td>289,820</td><td>134,022</td><td>26,804</td><td class="highlight">54%</td></tr>
-                    <tr><td>10 transfers</td><td>579,640</td><td>191,798</td><td>19,180</td><td class="highlight">67%</td></tr>
-                    <tr><td>20 transfers</td><td>1,159,280</td><td>~342,000</td><td>~17,100</td><td class="highlight">~70%</td></tr>
+                    <tr><td>1 (direct)</td><td>58,008</td><td>58,008</td><td>58,008</td><td class="highlight">--</td></tr>
+                    <tr><td>2 transfers</td><td>116,016</td><td>99,494</td><td>49,747</td><td class="highlight">14%</td></tr>
+                    <tr><td>5 transfers</td><td>290,040</td><td>134,242</td><td>26,848</td><td class="highlight">54%</td></tr>
+                    <tr><td>10 transfers</td><td>580,080</td><td>192,238</td><td>19,224</td><td class="highlight">67%</td></tr>
+                    <tr><td>20 transfers</td><td>1,160,160</td><td>~308,000</td><td>~15,400</td><td class="highlight">~73%</td></tr>
                 </tbody>
             </table>
         </div>
@@ -1980,14 +1980,15 @@
             return;
         }
 
-        const individualGas = n * 57964;
-        const batchedGas = 21000 + Math.ceil(n * 13000);
-        const actualBatchedEstimate = Math.min(batchedGas, Math.floor(individualGas * 0.65));
+        const individualGas = n * 58008;
+        // Measured formula: batch cost = 76314 (fixed) + n * 11590 (per request)
+        // Derived from Foundry gas benchmarks (batch 2/5/10)
+        const batchedGas = 76314 + n * 11590;
 
         document.getElementById("gasOld").textContent = `${individualGas.toLocaleString()} gas`;
-        document.getElementById("gasNew").textContent = `${actualBatchedEstimate.toLocaleString()} gas`;
+        document.getElementById("gasNew").textContent = `${batchedGas.toLocaleString()} gas`;
 
-        const savingPercent = Math.round(((individualGas - actualBatchedEstimate) / individualGas) * 100);
+        const savingPercent = Math.round(((individualGas - batchedGas) / individualGas) * 100);
         const savingEl = document.getElementById("gasSaving");
         savingEl.textContent = `−${savingPercent}%`;
         savingEl.style.display = "inline";
@@ -2073,7 +2074,7 @@
 
             const receipt = await tx.wait();
             const gasUsed = receipt.gasUsed;
-            const individualEstimate = BigInt(actions.length) * 57964n;
+            const individualEstimate = BigInt(actions.length) * 58008n;
             const savings = BigInt(individualEstimate) - BigInt(gasUsed);
             const savingsPercent = (100n * savings) / BigInt(individualEstimate);
 

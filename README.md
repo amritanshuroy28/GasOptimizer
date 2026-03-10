@@ -258,11 +258,11 @@ The single-page application (`index.html`) provides:
 
 ### Theoretical Model
 
-Each Ethereum TX pays 21,000 gas base overhead. For a simple ERC-20 transfer (~36,964 gas execution):
+Each Ethereum TX pays 21,000 gas base overhead. For a simple ERC-20 transfer (~37,008 gas execution):
 
-$$\text{Individual Cost} = N \times (21{,}000 + 36{,}964) = N \times 57{,}964 \text{ gas}$$
+$$\text{Individual Cost} = N \times (21{,}000 + 37{,}008) = N \times 58{,}008 \text{ gas}$$
 
-$$\text{Batched Cost} = 21{,}000 + N \times (36{,}964 + C_{\text{overhead}}) \text{ gas}$$
+$$\text{Batched Cost} = 21{,}000 + N \times (37{,}008 + C_{\text{overhead}}) \text{ gas}$$
 
 $$\text{Savings} = (N-1) \times 21{,}000 - N \times C_{\text{overhead}}$$
 
@@ -270,13 +270,13 @@ $$\text{Savings} = (N-1) \times 21{,}000 - N \times C_{\text{overhead}}$$
 
 Real-world comparison includes the 21,000 base transaction cost that each individual transfer would pay separately:
 
-| Batch Size | Individual Cost (N × 57,964) | Batched Cost (21K + internal) | Gas/Tx | Savings |
+| Batch Size | Individual Cost (N × 58,008) | Batched Cost (21K + internal) | Gas/Tx | Savings |
 |-----------|------------------------------|-------------------------------|--------|---------|
-| 1 (direct) | 57,964 | 57,964 | 57,964 | -- |
-| 2 transfers | 115,928 | 99,406 | 49,703 | **14%** |
-| 5 transfers | 289,820 | 134,022 | 26,804 | **54%** |
-| 10 transfers | 579,640 | 191,798 | 19,180 | **67%** |
-| 20 transfers | 1,159,280 | ~342,000 | ~17,100 | **~70%** |
+| 1 (direct) | 58,008 | 58,008 | 58,008 | -- |
+| 2 transfers | 116,016 | 99,494 | 49,747 | **14%** |
+| 5 transfers | 290,040 | 134,242 | 26,848 | **54%** |
+| 10 transfers | 580,080 | 192,238 | 19,224 | **67%** |
+| 20 transfers | 1,160,160 | ~308,000 | ~15,400 | **~73%** |
 
 Batching saves gas at **every** batch size because the 21,000 base transaction cost is paid only once instead of N times. Savings asymptotically approach ~70% as batch size increases.
 
@@ -431,12 +431,12 @@ Produces a per-function gas breakdown:
 
 | Contract | Function | Min | Avg | Median | Max |
 |----------|----------|-----|-----|--------|-----|
-| BatchExecutor | `executeBatch` | 22,430 | 100,714 | 94,041 | 218,498 |
+| BatchExecutor | `executeBatch` | 22,430 | 100,809 | 94,085 | 218,938 |
 | BatchExecutor | `verify` | 563 | 6,536 | 7,894 | 7,922 |
 | BatchExecutor | `DOMAIN_SEPARATOR` | 223 | 223 | 223 | 223 |
-| GasSponsor | `claim` | 26,759 | 118,278 | 164,038 | 164,038 |
-| GasSponsor | `deposit` | 45,166 | 45,166 | 45,166 | 45,166 |
-| SampleToken | `transfer` | 51,375 | 51,398 | 51,399 | 51,399 |
+| GasSponsor | `claim` | 26,762 | 119,390 | 165,705 | 165,705 |
+| GasSponsor | `deposit` | 45,205 | 45,205 | 45,205 | 45,205 |
+| SampleToken | `transfer` | 51,419 | 51,442 | 51,443 | 51,443 |
 
 ---
 
