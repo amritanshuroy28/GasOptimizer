@@ -7,6 +7,7 @@ evm_version = "cancun"
 via_ir = true
 optimizer = true
 optimizer_runs = 1000
+fs_permissions = [{ access = "read-write", path = "./" }]
 
 # Sepolia deployment settings
 [rpc_endpoints]

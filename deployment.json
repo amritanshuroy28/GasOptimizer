@@ -1,22 +1,8 @@
 {
-  "network": "sepolia",
-  "deployer": "",
-  "contracts": {
-    "BatchExecutor": {
-      "address": ""
-    },
-    "SampleToken": {
-      "address": "",
-      "trustForwarder": ""
-    },
-    "GasSponsor": {
-      "address": "",
-      "limits": {
-        "maxPerClaim": "0.005 ETH",
-        "dailyLimitPerRelayer": "0.1 ETH",
-        "dailyLimitPerUser": "0.002 ETH",
-        "globalDailyLimit": "0.5 ETH"
-      }
-    }
-  }
+  "BatchExecutor": "0x240b16ba0ACB7679ac4140ea2BcC8741F657b0E2",
+  "ChainId": 11155111,
+  "Deployer": "0x0940bE8339fbC1007f417F5Cc69139feB0715155",
+  "GasSponsor": "0x1F9ddFAa18C3Bdc8dE2B9DE44C256C9b7C4F7460",
+  "SampleToken": "0x96c40af009dC41266261fFEDdD338AF57a960C7a",
+  "Timestamp": "1773160884"
 }
