@@ -1965,7 +1965,9 @@
 
         count.textContent = `${actions.length} action${actions.length !== 1 ? 's' : ''}`;
         pending.textContent = actions.length;
-        document.getElementById("executeBtn").disabled = !userAddress || actions.length === 0;
+        const execBtn = document.getElementById("executeBtn");
+        execBtn.disabled = !userAddress || actions.length === 0;
+        execBtn.innerHTML = actions.length <= 1 ? "Send Transfer" : "Sign & Relay Batch";
 
         // Auto-scroll to the latest action
         requestAnimationFrame(() => list.scrollTop = list.scrollHeight);
@@ -1980,6 +1982,17 @@
             return;
         }
 
+        const savingEl = document.getElementById("gasSaving");
+
+        if (n === 1) {
+            // Single action: direct transfer, no batching overhead
+            const directGas = 58008;
+            document.getElementById("gasOld").textContent = `${directGas.toLocaleString()} gas`;
+            document.getElementById("gasNew").textContent = `${directGas.toLocaleString()} gas (direct)`;
+            savingEl.style.display = "none";
+            return;
+        }
+
         const individualGas = n * 58008;
         // Measured formula: batch cost = 76314 (fixed) + n * 11590 (per request)
         // Derived from Foundry gas benchmarks (batch 2/5/10)
@@ -1989,7 +2002,6 @@
         document.getElementById("gasNew").textContent = `${batchedGas.toLocaleString()} gas`;
 
         const savingPercent = Math.round(((individualGas - batchedGas) / individualGas) * 100);
-        const savingEl = document.getElementById("gasSaving");
         savingEl.textContent = `−${savingPercent}%`;
         savingEl.style.display = "inline";
     }
@@ -2023,6 +2035,8 @@
                 }
                 validActions.push({
                     to: CONFIG.sampleTokenAddress,
+                    recipient: a.to,
+                    amount: ethers.parseUnits(a.amount, 18),
                     data: tokenIface.encodeFunctionData("transfer", [
                         a.to,
                         ethers.parseUnits(a.amount, 18)
@@ -2032,6 +2046,42 @@
                 });
             }
 
+            // ── Single action: skip batching, send a direct transfer ──
+            if (validActions.length === 1) {
+                setStep(3);
+                log("info", "Single action — sending direct transfer (no batch overhead)...");
+
+                setStep(4);
+                btn.innerHTML = '<span class="spinner"></span>Sending...';
+
+                const tx = await tokenContract.transfer(
+                    validActions[0].recipient,
+                    validActions[0].amount
+                );
+
+                const txHash = tx.hash;
+                log("info", `Tx submitted: ${txHash.slice(0, 14)}...`);
+                log("info", "Waiting for confirmation...");
+
+                const receipt = await tx.wait();
+                const gasUsed = receipt.gasUsed;
+
+                log("success", `✓ Direct transfer confirmed in block ${receipt.blockNumber}`);
+                log("success", `Gas used: ${gasUsed.toString()} (direct call)`);
+
+                await refreshStatus();
+                actions = [];
+                renderActions();
+
+                for (let i = 1; i <= 4; i++) {
+                    document.getElementById(`step${i}`).className = "step done";
+                }
+
+                resetBtn();
+                return;
+            }
+
+            // ── Multiple actions: use batch pathway ──
             setStep(3);
             log("info", `Preparing ${validActions.length} actions for signing...`);
 
@@ -2142,7 +2192,7 @@
 
     function resetBtn() {
         const btn = document.getElementById("executeBtn");
-        btn.innerHTML = "Sign & Relay Batch";
+        btn.innerHTML = actions.length <= 1 ? "Send Transfer" : "Sign & Relay Batch";
         btn.disabled = !userAddress || actions.length === 0;
     }
 
