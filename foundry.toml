@@ -1,0 +1,22 @@
+[profile.default]
+src = "contracts"
+out = "out"
+libs = ["lib"]
+solc = "0.8.24"
+evm_version = "cancun"
+via_ir = true
+optimizer = true
+optimizer_runs = 1000
+
+# Sepolia deployment settings
+[rpc_endpoints]
+sepolia = "${SEPOLIA_RPC_URL}"
+localhost = "http://127.0.0.1:8545"
+
+[etherscan]
+sepolia = { key = "${ETHERSCAN_API_KEY}" }
+
+[fmt]
+line_length = 120
+tab_width = 4
+bracket_spacing = false

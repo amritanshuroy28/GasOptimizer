@@ -1221,7 +1221,7 @@
             </button>
             <div class="network-badge">
                 <div class="network-dot"></div>
-                Ganache
+                Sepolia
             </div>
             <button class="connect-btn" id="connectBtn" onclick="toggleWallet()">
                 Connect Wallet
@@ -1437,7 +1437,7 @@
             <div class="how-step">
                 <div class="how-step-num">1</div>
                 <h4>Connect Wallet</h4>
-                <p>User connects MetaMask to Ganache local network. The dApp reads their nonce and token balance from the blockchain.</p>
+                <p>User connects MetaMask to the Sepolia testnet. The dApp reads their nonce and token balance from the blockchain.</p>
                 <span class="gas-tag free">Gas: 0 (read-only)</span>
             </div>
             <div class="how-step">
@@ -1517,7 +1517,7 @@
             <div class="gas-math-title">📊 Gas Optimization Analysis</div>
             <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem; font-family: var(--font-display); line-height: 1.6;">
                 Every Ethereum transaction pays a <strong>21,000 gas base cost</strong>. Batching amortizes this across N operations.
-                For N token transfers, individual cost = N × 52,000 gas vs batched cost = 21,000 + N × ~15,600 gas.
+                Measured with <code>forge test --gas-report</code>. Individual cost includes the 21K base per transaction.
             </p>
             <table class="gas-table">
                 <thead>
@@ -1525,16 +1525,16 @@
                         <th>Batch Size</th>
                         <th>Individual Cost</th>
                         <th>Batched Cost</th>
-                        <th>Gas Saved</th>
+                        <th>Per-Tx (Batched)</th>
                         <th>Savings %</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td>2 transfers</td><td>104,000</td><td>65,000</td><td>39,000</td><td class="highlight">37.5%</td></tr>
-                    <tr><td>5 transfers</td><td>260,000</td><td>104,000</td><td>156,000</td><td class="highlight">60.0%</td></tr>
-                    <tr><td>10 transfers</td><td>520,000</td><td>182,000</td><td>338,000</td><td class="highlight">65.0%</td></tr>
-                    <tr><td>20 transfers</td><td>1,040,000</td><td>338,000</td><td>702,000</td><td class="highlight">67.5%</td></tr>
-                    <tr><td>50 transfers</td><td>2,600,000</td><td>806,000</td><td>1,794,000</td><td class="highlight">69.0%</td></tr>
+                    <tr><td>1 (direct)</td><td>57,964</td><td>57,964</td><td>57,964</td><td class="highlight">--</td></tr>
+                    <tr><td>2 transfers</td><td>115,928</td><td>99,406</td><td>49,703</td><td class="highlight">14%</td></tr>
+                    <tr><td>5 transfers</td><td>289,820</td><td>134,022</td><td>26,804</td><td class="highlight">54%</td></tr>
+                    <tr><td>10 transfers</td><td>579,640</td><td>191,798</td><td>19,180</td><td class="highlight">67%</td></tr>
+                    <tr><td>20 transfers</td><td>1,159,280</td><td>~342,000</td><td>~17,100</td><td class="highlight">~70%</td></tr>
                 </tbody>
             </table>
         </div>
@@ -1608,7 +1608,7 @@
         </div>
         <div class="footer-bottom">
             <p>Built for Web3Assam Hackathon — Gas Fee Optimizer & Batch Transaction System</p>
-            <p style="margin-top: 0.5rem; color: var(--text-muted);">© 2026 Gas Optimizer — Batch & Relay Engine. Ganache Local Network.</p>
+            <p style="margin-top: 0.5rem; color: var(--text-muted);">© 2026 Gas Optimizer — Batch & Relay Engine. Sepolia Testnet.</p>
         </div>
     </footer>
 </div>
@@ -1620,12 +1620,13 @@
 
     // Defaults – overwritten by /api/config on page load
     const CONFIG = {
-        chainId: 1337,  // Ganache
-        chainName: "Ganache",
-        rpcUrl: "http://127.0.0.1:7545",
-        batchExecutorAddress: "0x2041C69a346e35c40d2b4E697A87aa2646350255",
-        sampleTokenAddress: "0xee8065cAeD152c60b380bE71A3107896055Ac526",
-        gasSponsorAddress: "0x2D3D0F91812aa3C8C5fE7313D4d2Ee93eFa36544",
+        chainId: 11155111,  // Sepolia
+        chainName: "Sepolia",
+        rpcUrl: "https://rpc.sepolia.org",
+        blockExplorer: "https://sepolia.etherscan.io",
+        batchExecutorAddress: "",
+        sampleTokenAddress: "",
+        gasSponsorAddress: "",
     };
 
     // Fetch live contract addresses from the server so we stay in sync
@@ -1638,6 +1639,9 @@
             if (data.sampleTokenAddress)  CONFIG.sampleTokenAddress  = data.sampleTokenAddress;
             if (data.gasSponsorAddress)   CONFIG.gasSponsorAddress   = data.gasSponsorAddress;
             if (data.rpcUrl)              CONFIG.rpcUrl              = data.rpcUrl;
+            if (data.chainId)             CONFIG.chainId             = data.chainId;
+            if (data.chainName)           CONFIG.chainName           = data.chainName;
+            if (data.blockExplorer)       CONFIG.blockExplorer       = data.blockExplorer;
             console.log("[Config] Loaded contract addresses from server");
         } catch (err) {
             console.warn("[Config] Could not fetch /api/config, using defaults", err);
@@ -1727,7 +1731,7 @@
             signer = await provider.getSigner();
             userAddress = await signer.getAddress();
 
-            // Verify we're on the correct network (Ganache 1337)
+            // Verify we're on the correct network
             const network = await provider.getNetwork();
             const detectedChainId = Number(network.chainId);
 
@@ -1748,15 +1752,16 @@
                                     chainId: "0x" + CONFIG.chainId.toString(16),
                                     chainName: CONFIG.chainName,
                                     rpcUrls: [CONFIG.rpcUrl],
-                                    nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 }
+                                    nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 },
+                                    blockExplorerUrls: CONFIG.blockExplorer ? [CONFIG.blockExplorer] : []
                                 }]
                             });
                         } catch (addErr) {
-                            log("error", "Failed to add Ganache network to MetaMask. Please add it manually (RPC: http://127.0.0.1:7545, Chain ID: 1337).");
+                            log("error", `Failed to add ${CONFIG.chainName} network to MetaMask. Please add it manually (RPC: ${CONFIG.rpcUrl}, Chain ID: ${CONFIG.chainId}).`);
                             return;
                         }
                     } else {
-                        log("error", "Failed to switch network. Please switch to Ganache (Chain ID 1337) manually in MetaMask.");
+                        log("error", `Failed to switch network. Please switch to ${CONFIG.chainName} (Chain ID ${CONFIG.chainId}) manually in MetaMask.`);
                         return;
                     }
                 }

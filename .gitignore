@@ -4,7 +4,12 @@ node_modules/
 # Environment variables
 .env
 
-# Truffle
+# Foundry
+out/
+cache/
+broadcast/
+
+# Build artifacts
 build/
 
 # Build info

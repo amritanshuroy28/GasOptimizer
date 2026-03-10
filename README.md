@@ -1,6 +1,6 @@
 # Gas Fee Optimizer & Batch Transaction System
 
-> A complete decentralized application demonstrating gas optimization through **transaction batching**, **EIP-712 meta-transactions**, and **sponsorship pool mechanisms** on a local Ganache network.
+> A complete decentralized application demonstrating gas optimization through **transaction batching**, **EIP-712 meta-transactions**, and **sponsorship pool mechanisms** on the Sepolia testnet.
 
 **Built for [Web3Assam](https://www.web3assam.org/)** — Driving blockchain education and adoption across Northeast India.
 
@@ -44,16 +44,16 @@ This project addresses these issues by building a **Gas Fee Optimizer and Batch 
 ## Solution Overview
 
 ```
-┌──────────────┐  EIP-712 Sign  ┌──────────────┐  Single TX    ┌─────────────────┐
-│  User Wallet │───(no gas)────▶│   Relayer    │──(batched)──▶│  BatchExecutor  │
-│  (MetaMask)  │                │   Server     │              │  (Smart Contract)│
-└──────────────┘                └──────┬───────┘              └────────┬────────┘
-                                       │ Reimburse                     │ Execute
-                                       ▼                               ▼
-                                ┌──────────────┐              ┌─────────────────┐
-                                │  GasSponsor  │              │  SampleToken    │
-                                │  (Pool)      │              │  (ERC-20)       │
-                                └──────────────┘              └─────────────────┘
++----------------+  EIP-712 Sign  +----------------+  Single TX    +-------------------+
+|  User Wallet   |---(no gas)---->|   Relayer      |---(batched)-->|  BatchExecutor    |
+|  (MetaMask)    |                |   Server       |               |  (Smart Contract) |
++----------------+                +-------+--------+               +---------+---------+
+                                          | Reimburse                        | Execute
+                                          v                                  v
+                                  +----------------+               +-------------------+
+                                  |  GasSponsor    |               |  SampleToken      |
+                                  |  (Pool)        |               |  (ERC-20)         |
+                                  +----------------+               +-------------------+
 ```
 
 **User pays: 0 gas.** The relayer handles execution, optionally reimbursed by the sponsor pool.
@@ -84,7 +84,7 @@ This project addresses these issues by building a **Gas Fee Optimizer and Batch 
 
 ### Transaction Flow
 
-1. **User connects** wallet (MetaMask on Ganache)
+1. **User connects** wallet (MetaMask on Sepolia)
 2. **User builds** N token transfer actions in the UI
 3. **User signs** each ForwardRequest via EIP-712 (no gas)
 4. **Relayer receives** signed requests via `POST /api/relay`
@@ -141,8 +141,8 @@ Manages gas fee subsidization with multi-layer constraints.
 | 6 | Emergency pause | Owner can freeze all claims instantly |
 
 **Sponsorship Modes:**
-- **Full** — `maxPerClaim = 0.05 ETH` (onboarding campaigns)
-- **Partial** — `maxPerClaim = 0.005 ETH` (sustainable operations)
+- **Full** — `maxPerClaim = 0.05 ETH` (onboarding campaigns, local dev)
+- **Partial** — `maxPerClaim = 0.005 ETH` (sustainable operations, Sepolia)
 - **None** — No GasSponsor deployed (relayer absorbs costs)
 
 ### SampleToken.sol ([source](contracts/SampleToken.sol))
@@ -198,7 +198,7 @@ req.to.call{gas: req.gas, value: req.value}(abi.encodePacked(req.data, req.from)
 {
     name: "BatchExecutor",
     version: "1",
-    chainId: 1337,                  // Ganache
+    chainId: 11155111,              // Sepolia
     verifyingContract: "0x..."      // Deployed BatchExecutor address
 }
 ```
@@ -210,14 +210,14 @@ req.to.call{gas: req.gas, value: req.value}(abi.encodePacked(req.data, req.from)
 ### Flow
 
 ```
-Relayer executes batch → measures gas cost → calls GasSponsor.claim()
-                                              │
-                                              ├─ Cap: min(cost, maxPerClaim)
-                                              ├─ Check relayer daily limit
-                                              ├─ Check per-user daily limits
-                                              ├─ Check global daily limit
-                                              ├─ Check pool balance
-                                              └─ Transfer ETH to relayer
+Relayer executes batch -> measures gas cost -> calls GasSponsor.claim()
+                                              |
+                                              +-- Cap: min(cost, maxPerClaim)
+                                              +-- Check relayer daily limit
+                                              +-- Check per-user daily limits
+                                              +-- Check global daily limit
+                                              +-- Check pool balance
+                                              +-- Transfer ETH to relayer
 ```
 
 ### Pre-Flight Check
@@ -240,7 +240,7 @@ Relayers can call `estimateReimbursement()` (view function, no gas) before submi
 
 The single-page application (`index.html`) provides:
 
-1. **Wallet Connection** — MetaMask integration with network detection
+1. **Wallet Connection** — MetaMask integration with Sepolia network detection
 2. **Status Dashboard** — Real-time nonce, balance, and pending action counts
 3. **Action Builder** — Dynamic form to add/remove token transfers
 4. **Gas Estimation** — Live comparison of individual vs. batched costs
@@ -258,25 +258,27 @@ The single-page application (`index.html`) provides:
 
 ### Theoretical Model
 
-Each Ethereum TX pays 21,000 gas base overhead. For a simple ERC-20 transfer (~31,000 gas execution):
+Each Ethereum TX pays 21,000 gas base overhead. For a simple ERC-20 transfer (~36,964 gas execution):
 
-$$\text{Individual Cost} = N \times (21{,}000 + 31{,}000) = N \times 52{,}000 \text{ gas}$$
+$$\text{Individual Cost} = N \times (21{,}000 + 36{,}964) = N \times 57{,}964 \text{ gas}$$
 
-$$\text{Batched Cost} = 21{,}000 + N \times (31{,}000 + 5{,}000_{\text{overhead}}) \approx 21{,}000 + N \times 15{,}600 \text{ gas}$$
+$$\text{Batched Cost} = 21{,}000 + N \times (36{,}964 + C_{\text{overhead}}) \text{ gas}$$
 
-$$\text{Savings} = (N-1) \times 21{,}000 - N \times 5{,}000$$
+$$\text{Savings} = (N-1) \times 21{,}000 - N \times C_{\text{overhead}}$$
 
-### Expected Results
+### Measured Results (Foundry Gas Report)
 
-| Batch Size | Individual | Batched | Savings |
-|-----------|-----------|---------|---------|
-| 2 | 104,000 | 65,000 | **37.5%** |
-| 5 | 260,000 | 104,000 | **60.0%** |
-| 10 | 520,000 | 182,000 | **65.0%** |
-| 20 | 1,040,000 | 338,000 | **67.5%** |
-| 50 | 2,600,000 | 806,000 | **69.0%** |
+Real-world comparison includes the 21,000 base transaction cost that each individual transfer would pay separately:
 
-Savings asymptotically approach ~70% as batch size increases.
+| Batch Size | Individual Cost (N × 57,964) | Batched Cost (21K + internal) | Gas/Tx | Savings |
+|-----------|------------------------------|-------------------------------|--------|---------|
+| 1 (direct) | 57,964 | 57,964 | 57,964 | -- |
+| 2 transfers | 115,928 | 99,406 | 49,703 | **14%** |
+| 5 transfers | 289,820 | 134,022 | 26,804 | **54%** |
+| 10 transfers | 579,640 | 191,798 | 19,180 | **67%** |
+| 20 transfers | 1,159,280 | ~342,000 | ~17,100 | **~70%** |
+
+Batching saves gas at **every** batch size because the 21,000 base transaction cost is paid only once instead of N times. Savings asymptotically approach ~70% as batch size increases.
 
 ---
 
@@ -312,7 +314,9 @@ Savings asymptotically approach ~70% as batch size increases.
 ### Prerequisites
 
 - Node.js v18+
-- [Ganache](https://trufflesuite.com/ganache/) running locally (default: `http://127.0.0.1:7545`)
+- [Foundry](https://book.getfoundry.sh/getting-started/installation) (`forge`, `cast`, `anvil`)
+- MetaMask browser extension
+- Sepolia ETH (from a faucet)
 
 ### 1. Install Dependencies
 
@@ -320,48 +324,58 @@ Savings asymptotically approach ~70% as batch size increases.
 npm install
 ```
 
+Foundry dependencies (`forge-std`, `openzeppelin-contracts`) are in `lib/` and managed via `forge install`.
+
 ### 2. Configure Environment
 
-Create `.env`:
+Copy the example and fill in your keys:
+
+```bash
+cp .env.example .env
+```
 
 ```env
-GANACHE_RPC_URL=http://127.0.0.1:7545
-DEPLOYER_PRIVATE_KEY=0xYOUR_GANACHE_PRIVATE_KEY
-RELAYER_PRIVATE_KEY=0xYOUR_GANACHE_PRIVATE_KEY
+SEPOLIA_RPC_URL=https://rpc.sepolia.org
+DEPLOYER_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+RELAYER_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
 
 # Auto-populated after deployment
-BATCH_EXECUTOR_ADDRESS=0x...
-SAMPLE_TOKEN_ADDRESS=0x...
-GAS_SPONSOR_ADDRESS=0x...
-RELAYER_ADDRESS=0x...
+BATCH_EXECUTOR_ADDRESS=
+SAMPLE_TOKEN_ADDRESS=
+GAS_SPONSOR_ADDRESS=
+RELAYER_ADDRESS=
 ```
 
 ### 3. Compile Contracts
 
 ```bash
-npm run compile
+forge build
 ```
 
-This uses Truffle to compile all Solidity contracts and generates artifacts in `build/contracts/`.
+Compiles all Solidity contracts with optimizer (1000 runs, `viaIR` enabled, `cancun` EVM target). Artifacts go to `out/`.
 
-### 4. Deploy to Ganache
+### 4. Deploy to Sepolia
 
 ```bash
-npm run deploy
+forge script script/Deploy.s.sol:DeployScript \
+  --rpc-url $SEPOLIA_RPC_URL \
+  --private-key $DEPLOYER_PRIVATE_KEY \
+  --broadcast --verify
+
+node script/post-deploy.js
 ```
 
-Or to redeploy from scratch:
+Or use the npm shortcut:
 
 ```bash
-npm run deploy:reset
+npm run deploy:sepolia
 ```
 
-The Truffle migration scripts will:
+This will:
 1. Deploy BatchExecutor, SampleToken, and GasSponsor
-2. Whitelist the relayer address in GasSponsor
-3. Auto-update `.env` and `deployment.json` with new contract addresses
-
-> **Note:** The frontend automatically fetches contract addresses from the server via `GET /api/config`, so no manual `index.html` editing is needed after deployment.
+2. Whitelist the deployer as relayer in GasSponsor
+3. Write `deployment.json` with all contract addresses
+4. Update `.env` with the deployed addresses
 
 ### 5. Start Server
 
@@ -371,6 +385,21 @@ npm start
 
 Open http://localhost:3000
 
+### 6. Deploy to Render.com
+
+1. Push your repo to GitHub
+2. Connect the repo on [Render.com](https://render.com) as a **Web Service**
+3. Render auto-detects `render.yaml` and configures the service
+4. Set the following environment variables in the Render dashboard:
+   - `SEPOLIA_RPC_URL`
+   - `DEPLOYER_PRIVATE_KEY`
+   - `RELAYER_PRIVATE_KEY`
+   - `BATCH_EXECUTOR_ADDRESS`
+   - `SAMPLE_TOKEN_ADDRESS`
+   - `GAS_SPONSOR_ADDRESS`
+   - `RELAYER_ADDRESS`
+5. Set `CORS_ORIGIN` to your Render URL for production security
+
 ---
 
 ## Testing & Validation
@@ -378,29 +407,36 @@ Open http://localhost:3000
 ### Run the Test Suite
 
 ```bash
-npm test
+forge test -vv
 ```
 
-This runs `test/gas-benchmark.js` on the Ganache network. **31 tests** across 9 categories:
+**27 tests** across 8 categories:
 
 1. **Signature Verification** — Valid EIP-712 signatures accepted; wrong-signer and wrong-nonce rejected
 2. **Nonce Replay Protection & Recovery** — Replays blocked; `incrementNonce()` and `incrementNonceBy()` tested
 3. **Request Deadline / Expiry** — Future deadlines accepted; past deadlines rejected; `deadline=0` (no expiry) works
 4. **Batch Execution** — Single-request and multi-request (3-tx) batches execute correctly
 5. **Gas Sponsorship** — Deposit, estimate, claim, cap enforcement, daily limits, and pause tested
-6. **Multi-Size Gas Benchmark** — Actual gas measured for batch sizes 2, 5, 10 vs. direct transfers (same recipient)
-6b. **Gas Benchmark — Different Recipients** — Actual gas measured for batch sizes 2, 5, 10 with different recipient addresses
+6. **Gas Benchmark** — Actual gas measured for batch sizes 2, 5, 10 vs. direct transfers
 7. **Failure Handling** — Empty batch, mismatched arrays, wrong nonce all revert correctly
 8. **Partial Failure Resilience** — Expired requests are skipped without killing the entire batch
 
-### Gas Benchmark Results (from tests)
+### Gas Report
 
-| Batch Size | Total Gas | Gas/Tx | Savings vs Direct |
-|-----------|-----------|--------|--------------------|
-| 1 (direct) | 34,645 | 34,645 | — |
-| 2 | 80,703 | 40,352 | -16% (overhead) |
-| 5 | 135,738 | 27,148 | 22% |
-| 10 | 227,439 | 22,744 | 34% |
+```bash
+forge test --gas-report
+```
+
+Produces a per-function gas breakdown:
+
+| Contract | Function | Min | Avg | Median | Max |
+|----------|----------|-----|-----|--------|-----|
+| BatchExecutor | `executeBatch` | 22,430 | 100,714 | 94,041 | 218,498 |
+| BatchExecutor | `verify` | 563 | 6,536 | 7,894 | 7,922 |
+| BatchExecutor | `DOMAIN_SEPARATOR` | 223 | 223 | 223 | 223 |
+| GasSponsor | `claim` | 26,759 | 118,278 | 164,038 | 164,038 |
+| GasSponsor | `deposit` | 45,166 | 45,166 | 45,166 | 45,166 |
+| SampleToken | `transfer` | 51,375 | 51,398 | 51,399 | 51,399 |
 
 ---
 
@@ -408,32 +444,30 @@ This runs `test/gas-benchmark.js` on the Ganache network. **31 tests** across 9 
 
 ### Assumptions
 
-- Users have MetaMask installed and configured for Ganache (chainId 1337)
-- Relayer has sufficient ETH (from Ganache accounts) to pay gas upfront
+- Users have MetaMask installed and configured for Sepolia (chainId 11155111)
+- Relayer has sufficient Sepolia ETH to pay gas upfront
 - GasSponsor pool is funded before reimbursement claims
 - Network gas prices are within reasonable testnet ranges
 - Single relayer model (no multi-relayer coordination)
 
 ### Limitations
 
-1. ~~**Sequential nonces**~~ **Resolved** — `incrementNonce()` and `incrementNonceBy(count)` allow users to skip stuck nonces and unblock the queue
-2. **Single relayer** — No multi-relayer coordination or failover (would need relayer registry and nonce reservation)
-3. **Testnet only** — Not audited for mainnet deployment; uses simplified patterns
+1. **Sequential nonces** — Resolved: `incrementNonce()` and `incrementNonceBy(count)` allow users to skip stuck nonces
+2. **Single relayer** — No multi-relayer coordination or failover
+3. **Testnet deployment** — Deployed on Sepolia; not audited for mainnet
 4. **Token-specific** — SampleToken must be deployed with BatchExecutor as trusted forwarder; existing tokens need wrapper contracts
-5. ~~**Gas estimation**~~ **Improved** — Real gas tracking via `GET /api/gas-stats` endpoint; nonce sync via `GET /api/nonce/:address`; actual measurements in test suite
-6. **MEV exposure** — Batch transactions on mainnet could be sandwich-attacked; needs private mempool or Flashbots integration
-7. **Day-based resets** — GasSponsor daily limits use `block.timestamp / 1 days`, which can vary ±15 seconds
+5. **MEV exposure** — Batch transactions on mainnet could be sandwich-attacked; needs private mempool or Flashbots integration
+6. **Day-based resets** — GasSponsor daily limits use `block.timestamp / 1 days`, which can vary
 
 ### Improvements Made
 
 | Issue | Solution |
 |-------|----------|
-| Sequential nonces block queue | Added `incrementNonce()` and `incrementNonceBy(count)` to BatchExecutor; UI "Skip Nonce" button |
-| No test suite | Created 31-test suite covering signatures, nonces, deadlines, batching, sponsorship, gas benchmarks (same & different recipients), and failure handling |
-| Theoretical-only gas estimation | Added `GET /api/gas-stats` endpoint with real gas history, `GET /api/nonce/:address` for nonce sync |
-| Frontend deadline bug | Fixed frontend ABI and ForwardRequest types to include `deadline` field (was missing, causing selector mismatch) |
-| Stale nonces accepted by relayer | Added early nonce-sync check in relayer to reject requests with already-consumed nonces |
-| No nonce recovery UI | Added "Skip Nonce" button in frontend status bar |
+| Sequential nonces block queue | Added `incrementNonce()` and `incrementNonceBy(count)` to BatchExecutor |
+| No test suite | Created 27-test Foundry suite covering all contract functionality |
+| Theoretical-only gas estimation | `forge test --gas-report` provides per-function measurements |
+| Legacy toolchain | Migrated to Foundry (forge/cast/anvil) for compilation, testing, and deployment |
+| Local-only deployment | Added Sepolia testnet support and Render.com hosting |
 
 ### Future Improvements
 
@@ -448,42 +482,43 @@ This runs `test/gas-benchmark.js` on the Ganache network. **31 tests** across 9 
 ## File Structure
 
 ```
-├── contracts/                     # Solidity smart contracts
-│   ├── BatchExecutor.sol          # Core: EIP-712 verification, batch execution, nonce recovery
-│   ├── GasSponsor.sol             # Gas sponsorship pool with 6-layer constraints
-│   └── SampleToken.sol            # Meta-tx-aware ERC-20 token
-├── test/                          # Truffle test suite
-│   └── gas-benchmark.js           # 31 tests: signatures, nonces, deadlines, batching, gas benchmarks
-├── migrations/                    # Truffle migration scripts
-│   ├── 1_initial_migration.js     # Required initial migration
-│   └── 2_deploy_contracts.js      # Deploys all contracts, updates .env
-├── build/contracts/               # Compiled contract ABIs (generated by Truffle)
-├── server.js                      # Express server (frontend + API + config + gas-stats)
-├── relayer.js                     # Batch queue, execution engine, gas history tracking
-├── signer.js                      # EIP-712 signing utilities
-├── index.html                     # Full frontend application
-├── truffle-config.js              # Truffle configuration (Ganache network)
-├── package.json                   # Dependencies and npm scripts
-├── deployment.json                # Deployed contract addresses (auto-generated)
-├── ARCHITECTURE.md                # Detailed system architecture design
-├── DEPLOYMENT.md                  # Step-by-step deployment guide
-├── SETUP.md                       # Setup verification checklist
-└── README.md                      # This file
++-- contracts/                     # Solidity smart contracts
+|   +-- BatchExecutor.sol          # Core: EIP-712 verification, batch execution, nonce recovery
+|   +-- GasSponsor.sol             # Gas sponsorship pool with 6-layer constraints
+|   +-- SampleToken.sol            # Meta-tx-aware ERC-20 token
++-- test/                          # Foundry test suite
+|   +-- GasBenchmark.t.sol         # 27 tests: signatures, nonces, deadlines, batching, gas benchmarks
++-- script/                        # Deployment scripts
+|   +-- Deploy.s.sol               # Foundry deploy script (Solidity)
+|   +-- post-deploy.js             # Updates .env and deployment.json after deploy
++-- lib/                           # Foundry dependencies (git submodules)
+|   +-- forge-std/                 # Foundry standard library
+|   +-- openzeppelin-contracts/    # OpenZeppelin contracts
++-- server.js                      # Express server (frontend + API + config)
++-- relayer.js                     # Batch queue, execution engine, gas history tracking
++-- signer.js                      # EIP-712 signing utilities
++-- index.html                     # Full frontend application
++-- foundry.toml                   # Foundry configuration (compiler, optimizer, networks)
++-- remappings.txt                 # Solidity import remappings
++-- render.yaml                    # Render.com deployment blueprint
++-- package.json                   # Node.js dependencies and npm scripts
++-- deployment.json                # Deployed contract addresses (auto-generated)
++-- .env.example                   # Environment variable template
++-- ARCHITECTURE.md                # Detailed system architecture design
++-- DEPLOYMENT.md                  # Step-by-step deployment guide
++-- SETUP.md                       # Setup verification checklist
++-- README.md                      # This file
 ```
 
 ---
 
-## Local Deployment (Ganache)
+## Toolchain
 
-| Contract | Address |
-|----------|--------|
-| **BatchExecutor** | `0x2041C69a346e35c40d2b4E697A87aa2646350255` |
-| **SampleToken** | `0xee8065cAeD152c60b380bE71A3107896055Ac526` |
-| **GasSponsor** | `0x2D3D0F91812aa3C8C5fE7313D4d2Ee93eFa36544` |
-
-**Network:** Ganache (chainId 1337, `http://127.0.0.1:7545`)
-**Toolchain:** Truffle v5.11.5 + Solidity 0.8.24
-**Local Server:** `npm start` → http://localhost:3000
+**Network:** Sepolia testnet (chainId 11155111)
+**Smart Contract Toolchain:** Foundry (forge 1.5.1, Solidity 0.8.24, optimizer 1000 runs + viaIR)
+**Server:** Node.js + Express.js, deployable on Render.com
+**Frontend:** Single-page HTML/JS using ethers.js v6
+**Local Server:** `npm start` -> http://localhost:3000
 
 ---
 
@@ -496,5 +531,5 @@ This runs `test/gas-benchmark.js` on the Ganache network. **31 tests** across 9 
 5. [OpenZeppelin MinimalForwarder](https://docs.openzeppelin.com/contracts/4.x/api/metatx)
 6. [Gas Station Network (GSN)](https://docs.opengsn.org/)
 7. [Ethereum Yellow Paper — Transaction Execution](https://ethereum.github.io/yellowpaper/paper.pdf)
-8. [Truffle Suite Documentation](https://trufflesuite.com/docs/truffle/)
+8. [Foundry Book](https://book.getfoundry.sh/)
 9. [Ethers.js v6 Documentation](https://docs.ethers.org/v6/)

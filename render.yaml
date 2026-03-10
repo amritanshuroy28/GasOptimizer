@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: gas-optimizer
+    runtime: node
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SEPOLIA_RPC_URL
+        sync: false
+      - key: DEPLOYER_PRIVATE_KEY
+        sync: false
+      - key: RELAYER_PRIVATE_KEY
+        sync: false
+      - key: BATCH_EXECUTOR_ADDRESS
+        sync: false
+      - key: SAMPLE_TOKEN_ADDRESS
+        sync: false
+      - key: GAS_SPONSOR_ADDRESS
+        sync: false
+      - key: RELAYER_ADDRESS
+        sync: false

@@ -1,22 +1,21 @@
 {
-  "timestamp": "2026-03-08T19:36:44.469Z",
-  "network": "ganache",
-  "deployer": "0x82AF8A19E153c4b8D04B146dC1E08388D84b9e70",
+  "network": "sepolia",
+  "deployer": "",
   "contracts": {
     "BatchExecutor": {
-      "address": "0x664C45ac7172F03Cd360E5629ed99b7d6ca6AEA3"
+      "address": ""
     },
     "SampleToken": {
-      "address": "0x2Da5b1d7cd2Ac7693FA80dd8Aa9A41ccd4A137d5",
-      "trustForwarder": "0x664C45ac7172F03Cd360E5629ed99b7d6ca6AEA3"
+      "address": "",
+      "trustForwarder": ""
     },
     "GasSponsor": {
-      "address": "0xC343BaD90B41155C6C5BBe55B57e4e4bD3f55744",
+      "address": "",
       "limits": {
-        "maxPerClaim": "0.05 ETH",
-        "dailyLimitPerRelayer": "1.0 ETH",
-        "dailyLimitPerUser": "0.01 ETH",
-        "globalDailyLimit": "5.0 ETH"
+        "maxPerClaim": "0.005 ETH",
+        "dailyLimitPerRelayer": "0.1 ETH",
+        "dailyLimitPerUser": "0.002 ETH",
+        "globalDailyLimit": "0.5 ETH"
       }
     }
   }

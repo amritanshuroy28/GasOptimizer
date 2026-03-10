@@ -199,7 +199,7 @@ This system implements a **Gas Fee Optimizer and Batch Transaction System** that
 ### 3. Transaction Flow (End-to-End)
 
 ```
-  User (Browser)          Relayer (Server)         Blockchain (Ganache)
+  User (Browser)          Relayer (Server)         Blockchain (Sepolia)
        │                        │                         │
   [1]  │── Connect Wallet ──────┼─────────────────────────│
        │                        │                         │
@@ -236,7 +236,7 @@ This system implements a **Gas Fee Optimizer and Batch Transaction System** that
 
 | Step | Actor | Action | Gas Cost |
 |------|-------|--------|----------|
-| 1 | User | Connect MetaMask to Ganache | 0 |
+| 1 | User | Connect MetaMask to Sepolia | 0 |
 | 2 | User | Define N token transfers in the UI | 0 |
 | 3 | User | Sign N ForwardRequests via EIP-712 | 0 |
 | 4 | User | Send signed requests to relayer API | 0 |
@@ -269,18 +269,19 @@ Where $C_{\text{overhead}}$ includes signature verification (~3,000 gas per sig)
 
 #### 4.2 Empirical Gas Analysis
 
-| Batch Size | Individual Cost | Batched Cost | Savings | Savings % |
-|-----------|----------------|-------------|---------|-----------|
-| 1 | 52,000 | 52,000 | 0 | 0% |
-| 2 | 104,000 | 65,000 | 39,000 | 37.5% |
-| 5 | 260,000 | 104,000 | 156,000 | 60.0% |
-| 10 | 520,000 | 182,000 | 338,000 | 65.0% |
-| 20 | 1,040,000 | 338,000 | 702,000 | 67.5% |
-| 50 | 2,600,000 | 806,000 | 1,794,000 | 69.0% |
+Measured using `forge test --gas-report` (Solidity 0.8.24, optimizer 1000 runs, viaIR). Individual cost includes the 21,000 base transaction cost per transfer:
+
+| Batch Size | Individual Cost (N × 57,964) | Batched Cost (21K + internal) | Savings | Savings % |
+|-----------|------------------------------|-------------------------------|---------|-----------|
+| 1 | 57,964 | 57,964 | 0 | 0% |
+| 2 | 115,928 | 99,406 | 16,522 | 14% |
+| 5 | 289,820 | 134,022 | 155,798 | 54% |
+| 10 | 579,640 | 191,798 | 387,842 | 67% |
+| 20 | 1,159,280 | ~342,000 | ~817,000 | ~70% |
 
 The savings converge toward ~70% as batch size increases, following:
 
-$$\text{Savings\%} \approx 1 - \frac{21{,}000 + N \times 15{,}600}{N \times 52{,}000}$$
+$$\text{Savings\%} \approx 1 - \frac{21{,}000 + N \times C_{\text{per\_request}}}{N \times 57{,}964}$$
 
 #### 4.3 Calldata Gas Considerations
 
@@ -345,7 +346,7 @@ DOMAIN_SEPARATOR = keccak256(abi.encode(
     keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
     keccak256("BatchExecutor"),    // Contract name
     keccak256("1"),                 // Version
-    block.chainid,                  // 1337 (Ganache)
+    block.chainid,                  // 11155111 (Sepolia)
     address(this)                   // Deployed contract address
 ));
 ```
@@ -391,9 +392,9 @@ If all pass → execute the request
 
 ### 7. Gas Sponsorship Modes
 
-#### Mode 1: Full Sponsorship (Onboarding)
+#### Mode 1: Full Sponsorship (Local Development)
 
-Ideal for new user acquisition. The dApp operator funds the pool generously:
+Ideal for local dev with Anvil. The dApp operator funds the pool generously:
 
 ```
 maxPerClaim:          0.05 ETH  (covers most batch txs)
@@ -404,18 +405,18 @@ globalDailyLimit:     5 ETH     (caps total daily spending)
 
 **User experience:** Completely gasless. User signs, relayer executes, pool pays.
 
-#### Mode 2: Partial Sponsorship (Sustainable)
+#### Mode 2: Testnet Sponsorship (Sepolia)
 
-For ongoing operations. Relayer absorbs part of the cost:
+For Sepolia deployment. Lower limits to conserve testnet ETH:
 
 ```
 maxPerClaim:          0.005 ETH (covers ~50% of cost)
-dailyLimitPerRelayer: 0.5 ETH
-dailyLimitPerUser:    0.003 ETH
-globalDailyLimit:     2 ETH
+dailyLimitPerRelayer: 0.1 ETH
+dailyLimitPerUser:    0.002 ETH
+globalDailyLimit:     0.5 ETH
 ```
 
-**User experience:** Still gasless from user's perspective, but relayer may pass remaining cost through other mechanisms.
+**User experience:** Still gasless from user's perspective, but limits are tighter.
 
 #### Mode 3: No Sponsorship (Relayer-Only)
 

@@ -121,11 +121,12 @@ function validateRelayRequest(body) {
 
 let relayer = null;
 
-const GANACHE_RPC_URL = process.env.GANACHE_RPC_URL || "http://127.0.0.1:7545";
+// Use Sepolia RPC if configured, otherwise fall back to local Anvil
+const RPC_URL = process.env.SEPOLIA_RPC_URL || "http://127.0.0.1:8545";
 
 if (process.env.RELAYER_PRIVATE_KEY && process.env.BATCH_EXECUTOR_ADDRESS) {
     relayer = new Relayer({
-        rpcUrl: GANACHE_RPC_URL,
+        rpcUrl: RPC_URL,
         relayerPrivateKey: process.env.RELAYER_PRIVATE_KEY,
         batchExecutorAddress: process.env.BATCH_EXECUTOR_ADDRESS,
         gasSponsorAddress: process.env.GAS_SPONSOR_ADDRESS || null,
@@ -158,13 +159,17 @@ app.get("/health", (req, res) => {
     });
 });
 
-// Serve contract addresses so the frontend stays in sync after redeployments
+// Serve contract addresses and network config so the frontend stays in sync
 app.get("/api/config", (req, res) => {
+    const isSepolia = !!process.env.SEPOLIA_RPC_URL;
     res.json({
         batchExecutorAddress: process.env.BATCH_EXECUTOR_ADDRESS || null,
         sampleTokenAddress: process.env.SAMPLE_TOKEN_ADDRESS || null,
         gasSponsorAddress: process.env.GAS_SPONSOR_ADDRESS || null,
-        rpcUrl: process.env.GANACHE_RPC_URL || "http://127.0.0.1:7545",
+        rpcUrl: RPC_URL,
+        chainId: isSepolia ? 11155111 : 31337,
+        chainName: isSepolia ? "Sepolia" : "Local",
+        blockExplorer: isSepolia ? "https://sepolia.etherscan.io" : null,
     });
 });
 

@@ -1,63 +1,78 @@
-# ✅ Deployment Setup Complete
+# Setup Checklist
 
 ## What's Been Done
 
-### ✓ Project Structure
+### Project Structure
 - Organized contracts into `contracts/` directory
-- Created `migrations/` for Truffle deployment scripts
-- Set up Truffle configuration (`truffle-config.js`)
-- CommonJS modules (Node.js)
+- Foundry configuration (`foundry.toml`, `remappings.txt`)
+- Foundry deploy script (`script/Deploy.s.sol`)
+- Foundry test suite (`test/GasBenchmark.t.sol`)
+- Render.com deployment config (`render.yaml`)
 
-### ✓ Smart Contracts (Ready to Deploy)
+### Smart Contracts (Ready to Deploy)
 - **BatchExecutor.sol** - EIP-712 signature verification & batch execution
 - **GasSponsor.sol** - Configurable gas sponsorship pool
 - **SampleToken.sol** - ERC-20 test token with meta-tx support
 
-### ✓ Deployment Setup
-- Truffle configuration (`truffle-config.js`)
-- Migration scripts (`migrations/1_initial_migration.js`, `migrations/2_deploy_contracts.js`)
-- Environment configuration template (`.env`)
-- Auto-update of `.env` and `deployment.json` after deployment
+### Deployment Setup
+- Foundry configuration (`foundry.toml`) with optimizer 1000 runs + viaIR
+- Deploy script (`script/Deploy.s.sol`) with Sepolia-aware limits
+- Post-deploy script (`script/post-deploy.js`) auto-updates `.env` and `deployment.json`
+- Environment variable template (`.env.example`)
 
-### ✓ Backend Server
-- Express.js server ready to run (`server.js`)
-- Relayer logic to batch transactions (`relayer.js`)
+### Backend Server
+- Express.js server (`server.js`) serves frontend + API
+- Relayer logic batches transactions (`relayer.js`)
 - Transaction signing utility (`signer.js`)
-- API endpoints for relay submission
+- Dynamic network config via `GET /api/config` (returns chainId, blockExplorer, etc.)
 
-### ✓ Documentation
+### Testing
+- 27 Foundry Solidity tests covering signatures, nonces, deadlines, batching, sponsorship, gas benchmarks, and failure handling
+- `forge test --gas-report` for per-function gas measurements
+
+### Documentation
 - Comprehensive README.md
 - Detailed DEPLOYMENT.md guide
-- Inline code comments in all files
+- System architecture in ARCHITECTURE.md
+- This setup checklist
 
 ## What You Need to Do
 
-### Step 1: Start Ganache
-   ```
-   Launch Ganache on your machine
-   Default RPC: http://127.0.0.1:7545
-   Copy a private key from one of the accounts
-   ```
+### Step 1: Install Foundry
+```bash
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+```
 
-### Step 2: Create `.env` File
-   ```bash
-   # Copy and fill in with your values:
-   GANACHE_RPC_URL=http://127.0.0.1:7545
-   DEPLOYER_PRIVATE_KEY=0xYOUR_GANACHE_PRIVATE_KEY
-   RELAYER_PRIVATE_KEY=0xYOUR_GANACHE_PRIVATE_KEY
-   ```
+### Step 2: Get Sepolia ETH
+Visit a Sepolia faucet (e.g., sepoliafaucet.com) and request testnet ETH for your deployer wallet.
 
-### Step 3: Compile & Deploy
-   ```bash
-   npm run compile
-   npm run deploy
-   ```
+### Step 3: Create `.env` File
+```bash
+cp .env.example .env
+```
 
-### Step 4: Start Server
-   ```bash
-   npm start
-   ```
-   Opens: http://localhost:3000
+Fill in your values:
+```env
+SEPOLIA_RPC_URL=https://rpc.sepolia.org
+DEPLOYER_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+RELAYER_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+```
+
+### Step 4: Compile & Deploy
+```bash
+forge build
+npm run deploy:sepolia
+```
+
+### Step 5: Start Server
+```bash
+npm start
+```
+Opens: http://localhost:3000
+
+### Step 6: Deploy to Render.com (Optional)
+Push to GitHub, connect on Render.com, set env vars in the dashboard.
 
 > **Note:** The frontend fetches contract addresses automatically from `GET /api/config`. No manual editing of `index.html` is needed after deployment.
 
@@ -65,36 +80,41 @@
 
 ```bash
 # Compilation
-npm run compile              # Compile Solidity contracts (Truffle)
-
-# Deployment
-npm run deploy              # Deploy to Ganache (truffle migrate)
-npm run deploy:reset        # Redeploy from scratch (truffle migrate --reset)
-npm run deploy:local        # Deploy to local development node (port 8545)
-
-# Server
-npm start                   # Start Express server
-npm run dev                 # Same as start
-
-# Truffle Console
-npm run console             # Interactive Truffle console on Ganache
+forge build                    # Compile Solidity contracts
 
 # Testing
-npm test                    # Run tests on Ganache
+forge test -vv                 # Run all 27 tests
+forge test --gas-report        # Run tests with gas breakdown
+forge test --match-test test_GasBenchmark  # Run only gas benchmarks
 
-# Check Health
+# Deployment
+npm run deploy:sepolia         # Deploy to Sepolia + update .env
+npm run deploy:local           # Deploy to local Anvil node
+npm run post-deploy            # Re-run .env update from deployment.json
+
+# Server
+npm start                      # Start Express server
+npm run dev                    # Same as start
+
+# Foundry utilities
+forge clean                    # Clear compilation cache
+cast call <addr> "getBalance()" --rpc-url $SEPOLIA_RPC_URL   # Read contract
+cast send <addr> "deposit()" --value 0.05ether --rpc-url $SEPOLIA_RPC_URL --private-key $DEPLOYER_PRIVATE_KEY  # Write contract
+
+# Health checks
 curl http://localhost:3000/health
-
-# Check contract config
 curl http://localhost:3000/api/config
 ```
 
 ## Project Files
 
 ### Configuration
-- `package.json` - Dependencies and scripts
-- `truffle-config.js` - Truffle settings for Ganache
-- `.env` - Environment variables (CREATE THIS!)
+- `foundry.toml` - Foundry compiler/network settings
+- `remappings.txt` - Solidity import remappings
+- `render.yaml` - Render.com deployment blueprint
+- `package.json` - Node.js dependencies and scripts
+- `.env.example` - Environment variable template
+- `.env` - Environment variables (create this)
 - `deployment.json` - Generated after deployment
 
 ### Smart Contracts
@@ -102,181 +122,109 @@ curl http://localhost:3000/api/config
 - `contracts/GasSponsor.sol` - Gas sponsorship pool
 - `contracts/SampleToken.sol` - ERC-20 token for testing
 
+### Scripts & Tests
+- `script/Deploy.s.sol` - Foundry Solidity deploy script
+- `script/post-deploy.js` - Post-deploy .env updater
+- `test/GasBenchmark.t.sol` - 27 Foundry tests
+
 ### Backend
-- `server.js` - Express server with API endpoints (includes `/api/config`)
+- `server.js` - Express server with API endpoints
 - `relayer.js` - Batch collection and execution logic
 - `signer.js` - Off-chain transaction signing
-- `migrations/2_deploy_contracts.js` - Truffle deployment script
 
 ### Frontend
 - `index.html` - Web interface for users
+
+### Dependencies (lib/)
+- `lib/forge-std/` - Foundry standard library
+- `lib/openzeppelin-contracts/` - OpenZeppelin ERC-20 and utilities
 
 ### Documentation
 - `README.md` - Complete guide
 - `DEPLOYMENT.md` - Detailed deployment steps
 - `ARCHITECTURE.md` - System architecture design
-- `SETUP.md` - This file!
+- `SETUP.md` - This file
 
 ## Architecture Overview
 
 ```
-┌─────────────────────────────────────────────────┐
-│         User's Browser (index.html)             │
-│  - Connect wallet                               │
-│  - Sign transactions                            │
-│  - Submit to relayer                            │
-└──────────────────┬──────────────────────────────┘
-                   │
-                   │ POST /api/relay
-                   ▼
-┌─────────────────────────────────────────────────┐
-│         Express Server (server.js)              │
-│  - Receives signed requests                     │
-│  - Queues them in relayer                       │
-│  - Exposes /api/relay endpoint                  │
-└──────────────────┬──────────────────────────────┘
-                   │
-                   ▼
-┌─────────────────────────────────────────────────┐
-│         Relayer (relayer.js)                    │
-│  - Collects requests (up to 15 seconds)         │
-│  - Verifies signatures                          │
-│  - Batches them together                        │
-│  - Submits to blockchain                        │
-└──────────────────┬──────────────────────────────┘
-                   │
-                   ▼ executeBatch()
-┌─────────────────────────────────────────────────┐
-│   Smart Contracts on Ganache (Local Blockchain)  │
-│  - BatchExecutor: Verifies & executes batch     │
-│  - GasSponsor: Reimburses relayer's gas         │
-│  - SampleToken: Test ERC-20 token               │
-└─────────────────────────────────────────────────┘
++---------------------------------------------------+
+|         User's Browser (index.html)               |
+|  - Connect wallet (MetaMask on Sepolia)           |
+|  - Sign transactions (EIP-712, no gas)            |
+|  - Submit to relayer                              |
++---------------------------+-----------------------+
+                            |
+                            | POST /api/relay
+                            v
++---------------------------------------------------+
+|         Express Server (server.js)                |
+|  - Receives signed requests                       |
+|  - Queues them in relayer                         |
+|  - Serves /api/config with network info           |
++---------------------------+-----------------------+
+                            |
+                            v
++---------------------------------------------------+
+|         Relayer (relayer.js)                      |
+|  - Collects requests (up to 15 seconds)           |
+|  - Verifies signatures                            |
+|  - Batches them together                          |
+|  - Submits to blockchain                          |
++---------------------------+-----------------------+
+                            |
+                            v executeBatch()
++---------------------------------------------------+
+|   Smart Contracts on Sepolia                      |
+|  - BatchExecutor: Verifies & executes batch       |
+|  - GasSponsor: Reimburses relayer's gas           |
+|  - SampleToken: Test ERC-20 token                 |
++---------------------------------------------------+
 ```
-
-## What Each Contract Does
-
-### BatchExecutor
-1. Receives batch of signed transactions
-2. Verifies each signature (EIP-712)
-3. Checks nonce for replay protection
-4. Executes each transaction
-5. Emits events for tracking
-
-**Key Functions:**
-- `executeBatch(requests[], signatures[])` - Main function
-- `verify(request, signature)` - Check signature validity
-- `getNonce(address)` - Get user's current nonce
-
-### GasSponsor
-1. Accepts ETH deposits
-2. Relayer claims reimbursement after batching
-3. Enforces configurable limits
-4. Tracks daily usage per relayer/user/global
-5. Owner can pause or adjust limits
-
-**Key Functions:**
-- `claim(amount, users[])` - Claim gas reimbursement
-- `deposit()` - Fund the pool
-- `estimateReimbursement(...)` - Check if claim would succeed
-- `setRelayer(address, bool)` - Whitelist relayers
-
-### SampleToken
-1. Standard ERC-20 token
-2. Awareness of BatchExecutor (meta-tx support)
-3. Extracts true sender from calldata
-4. Overrides `_msgSender()` for proper accounting
-
-**Key Functions:**
-- `transfer(to, amount)` - Token transfer (works with batching)
-- `balanceOf(address)` - Check balance
 
 ## Gas Sponsor Configuration
 
-Default settings (can be changed before deployment):
+Default Sepolia settings (set in `script/Deploy.s.sol`):
 
-```javascript
-maxPerClaim: 0.05 ETH              // Max reimbursement per batch
-dailyLimitPerRelayer: 1 ETH        // Relayer can claim 1 ETH/day
-dailyLimitPerUser: 0.01 ETH        // Each user benefits max 0.01 ETH/day
-globalDailyLimit: 5 ETH            // Total pool limit per day
+```
+maxPerClaim:          0.005 ETH    # Max reimbursement per batch
+dailyLimitPerRelayer: 0.1 ETH     # Relayer can claim per day
+dailyLimitPerUser:    0.002 ETH   # Each user benefits max per day
+globalDailyLimit:     0.5 ETH     # Total pool limit per day
 ```
 
-Example: If a batch costs 0.02 ETH but maxPerClaim is 0.05 ETH:
-- Relayer gets fully reimbursed: 0.02 ETH
-- User saves full gas cost
-
-If cost is 0.06 ETH:
-- Relayer gets partial: 0.05 ETH
-- Relayer absorbs: 0.01 ETH (or charges user differently)
+Local development settings (Anvil) use 10x higher limits.
 
 ## Expected Results
 
 After deployment, you'll have:
 
-1. **Three deployed contracts** on Ganache
+1. **Three deployed contracts** on Sepolia
    - Addresses saved in `.env` and `deployment.json`
+   - Verifiable on [sepolia.etherscan.io](https://sepolia.etherscan.io)
 
-2. **Running server** on localhost:3000
+2. **Running server** on localhost:3000 or Render.com
    - Web interface for batching transactions
    - API endpoints for relayer integration
 
-3. **Gas savings**
-   - Individual ERC-20 transfer: ~52,000 gas each (21,000 base + ~31,000 execution)
-   - Batched transfers: ~22,000-27,000 gas/tx depending on batch size
-   - Savings: ~35-65% for batch sizes of 2-10
-
-## Possible Issues & Solutions
-
-**"GANACHE_RPC_URL is missing"**
-- Create .env file with Ganache RPC URL
-
-**"invalid nonce" error**
-- Make sure contract addresses are correct
-- Start with fresh account (zero nonce)
-
-**"insufficient balance" deployment error**
-- Check Ganache is running and accounts have ETH
-- Verify your private key matches a Ganache account
-
-**Relayer not starting**
-- Check all env variables are set
-- Verify contract addresses exist on chain
-- Ensure RPC URL works
+3. **Gas savings** (measured by `forge test --gas-report`, including 21K base cost)
+   - Single direct transfer: ~57,964 gas (36,964 execution + 21,000 base)
+   - Batch of 2: ~49,703 gas/tx (14% savings)
+   - Batch of 5: ~26,804 gas/tx (54% savings)
+   - Batch of 10: ~19,180 gas/tx (67% savings)
 
 ## Network Info
 
-**Ganache (Local Blockchain):**
-- Chain ID: 1337
-- RPC URL: http://127.0.0.1:7545
-- Pre-funded accounts with 100 ETH each
-- No faucet needed — accounts come with test ETH
-- Add to MetaMask as a custom network
-
-## Next Steps
-
-1. **Fill in `.env` file** with your Ganache credentials
-2. **Run** `npm run deploy`
-3. **Start** `npm start`
-4. **Test** batching at http://localhost:3000
-5. **Optionally fund** GasSponsor pool with ETH for gas reimbursement
+**Sepolia Testnet:**
+- Chain ID: 11155111
+- RPC URL: https://rpc.sepolia.org
+- Block Explorer: https://sepolia.etherscan.io
+- Get testnet ETH from faucets
+- Add to MetaMask as Sepolia network (usually pre-configured)
 
 ## Support & Resources
 
-- **Truffle Docs**: https://trufflesuite.com/docs/truffle/
+- **Foundry Book**: https://book.getfoundry.sh/
 - **Ethers.js Docs**: https://docs.ethers.org/v6
 - **EIP-712 Spec**: https://eips.ethereum.org/EIPS/eip-712
-- **Ganache**: https://trufflesuite.com/ganache/
-
----
-
-## Summary
-
-✅ All setup is complete!
-✅ Contracts are ready to deploy
-✅ Server is ready to run
-✅ Documentation is comprehensive
-
-👉 **Next**: Create `.env` file and run `npm run deploy`
-
-🚀 **Let's go!**
+- **Render.com Docs**: https://docs.render.com/

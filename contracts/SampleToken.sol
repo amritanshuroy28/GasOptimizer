@@ -31,10 +31,12 @@ contract SampleToken is ERC20 {
     /// @notice The BatchExecutor address (immutable for gas savings)
     address public immutable trustedForwarder;
 
+    error ZeroForwarder();
+
     constructor(
         address _trustedForwarder
     ) ERC20("SampleToken", "SMPL") {
-        require(_trustedForwarder != address(0), "SampleToken: zero forwarder");
+        if (_trustedForwarder == address(0)) revert ZeroForwarder();
         trustedForwarder = _trustedForwarder;
         // Mint 1 million tokens to the deployer for testing
         _mint(msg.sender, 1_000_000 * 10 ** decimals());
