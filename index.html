@@ -2068,11 +2068,47 @@
             btn.innerHTML = '<span class="spinner"></span>Relaying...';
             log("info", "Submitting batch to BatchExecutor...");
 
-            const tx = await batchExecutor.executeBatch(requests, signatures);
-            log("info", `Tx submitted: ${tx.hash.slice(0, 14)}...`);
+            // Build a fully-specified raw transaction so MetaMask cannot
+            // override the gas parameters with its own (higher) estimates.
+            // By supplying every field via eth_sendTransaction, MetaMask
+            // treats these as the authoritative values instead of running
+            // its own gas estimation pass.
+            const userAddr = await signer.getAddress();
+            const iface = batchExecutor.interface;
+            const txData = iface.encodeFunctionData("executeBatch", [requests, signatures]);
+
+            const [estimatedGas, feeData, nonce] = await Promise.all([
+                provider.estimateGas({
+                    from: userAddr,
+                    to: CONFIG.batchExecutorAddress,
+                    data: txData,
+                }),
+                provider.getFeeData(),
+                provider.getTransactionCount(userAddr, "pending"),
+            ]);
+
+            const gasLimit = estimatedGas * 130n / 100n; // 30% buffer
+
+            const txParams = {
+                from: userAddr,
+                to: CONFIG.batchExecutorAddress,
+                data: txData,
+                gas: "0x" + gasLimit.toString(16),
+                nonce: "0x" + nonce.toString(16),
+                chainId: "0x" + CONFIG.chainId.toString(16),
+                type: "0x2", // EIP-1559
+            };
+
+            if (feeData.maxFeePerGas) {
+                txParams.maxFeePerGas = "0x" + feeData.maxFeePerGas.toString(16);
+                txParams.maxPriorityFeePerGas = "0x" + feeData.maxPriorityFeePerGas.toString(16);
+            }
+
+            const txHash = await provider.send("eth_sendTransaction", [txParams]);
+            log("info", `Tx submitted: ${txHash.slice(0, 14)}...`);
             log("info", "Waiting for confirmation...");
 
-            const receipt = await tx.wait();
+            const receipt = await provider.waitForTransaction(txHash);
             const gasUsed = receipt.gasUsed;
             const individualEstimate = BigInt(actions.length) * 58008n;
             const savings = BigInt(individualEstimate) - BigInt(gasUsed);
