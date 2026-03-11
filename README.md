@@ -500,7 +500,9 @@ Produces a per-function gas breakdown:
 +-- server.js                      # Express server (frontend + API + config)
 +-- relayer.js                     # Batch queue, execution engine, gas history tracking
 +-- signer.js                      # EIP-712 signing utilities
-+-- index.html                     # Full frontend application
++-- index.html                     # Frontend HTML structure and layout
++-- app.js                         # Frontend application logic (wallet, signing, relay)
++-- styles.css                     # Frontend styling (dark/light theme support)
 +-- foundry.toml                   # Foundry configuration (compiler, optimizer, networks)
 +-- remappings.txt                 # Solidity import remappings
 +-- render.yaml                    # Render.com deployment blueprint
