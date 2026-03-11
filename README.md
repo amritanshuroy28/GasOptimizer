@@ -538,3 +538,4 @@ Produces a per-function gas breakdown:
 7. [Ethereum Yellow Paper — Transaction Execution](https://ethereum.github.io/yellowpaper/paper.pdf)
 8. [Foundry Book](https://book.getfoundry.sh/)
 9. [Ethers.js v6 Documentation](https://docs.ethers.org/v6/)
+10. [iBatch Research Paper](https://tristartom.github.io/docs/fse21-ibatch.pdf)
