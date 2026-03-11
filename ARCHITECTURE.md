@@ -65,7 +65,7 @@ This system implements a **Gas Fee Optimizer and Batch Transaction System** that
 │      └─ Check signer == req.from && nonce match         │
 │                                                         │
 │    executeBatch(requests[], signatures[]) → bool[]      │
-│      ├─ Check min/max batch size                        │
+│      ├─ Check min batch size (max enforced off-chain)   │
 │      ├─ For each (request, signature):                  │
 │      │   ├─ Check deadline (skip if expired)            │
 │      │   ├─ Inline verify (skip if invalid)             │
@@ -118,10 +118,10 @@ This system implements a **Gas Fee Optimizer and Batch Transaction System** that
 │  Claim Flow:                                            │
 │    relayer.claim(gasAmount, users[])                     │
 │      ├─ Cap: min(amount, maxPerClaim)                   │
+│      ├─ Check pool balance (early exit saves gas)       │
 │      ├─ Check relayer daily limit (reset if new day)    │
-│      ├─ Check per-user limits (split equally)           │
 │      ├─ Check global daily limit                        │
-│      ├─ Check pool balance                              │
+│      ├─ Check per-user limits (split equally)           │
 │      ├─ Update all tracking counters                    │
 │      └─ Transfer ETH to relayer                         │
 │                                                         │
@@ -175,7 +175,8 @@ This system implements a **Gas Fee Optimizer and Batch Transaction System** that
 │    ├─ GET  /api/batch/status → Queue status                        │
 │    ├─ GET  /api/gas-stats    → Gas usage analytics & history       │
 │    ├─ GET  /api/nonce/:addr  → On-chain nonce for address          │
-│    └─ POST /api/batch/flush  → Force flush queue (admin)            │
+│    ├─ POST /api/batch/flush  → Force flush queue (admin)            │
+│    └─ POST /api/faucet       → Mint test tokens to wallet           │
 │                                                                  │
 │  Relayer Engine (relayer.js)                                     │
 │    ├─ Request Queue    → pendingRequests[], pendingSignatures[]  │
@@ -241,7 +242,7 @@ This system implements a **Gas Fee Optimizer and Batch Transaction System** that
 | 3 | User | Sign N ForwardRequests via EIP-712 | 0 |
 | 4 | User | Send signed requests to relayer API | 0 |
 | 5 | Relayer | Queue requests, wait for batch window | 0 |
-| 6 | Relayer | Submit single `executeBatch()` TX | ~21K + N×13K gas |
+| 6 | Relayer | Submit single `executeBatch()` TX | ~21K + N×17K gas |
 | 7 | Relayer | Claim reimbursement from GasSponsor | ~45K gas |
 | 8 | User | Receive confirmation and savings report | 0 |
 
@@ -279,7 +280,7 @@ Measured using `forge test --gas-report` (Solidity 0.8.24, optimizer 1000 runs, 
 | 10 | 580,080 | 192,238 | 387,842 | 67% |
 | 20 | 1,160,160 | ~308,000 | ~852,000 | ~73% |
 
-The savings converge toward ~80% as batch size increases, following:
+The savings converge toward ~73% as batch size increases, following:
 
 $$\text{Savings\%} \approx 1 - \frac{21{,}000 + N \times C_{\text{per\_request}}}{N \times 58{,}008}$$
 

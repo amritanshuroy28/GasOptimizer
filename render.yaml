@@ -21,3 +21,5 @@ services:
         sync: false
       - key: RELAYER_ADDRESS
         sync: false
+      - key: CORS_ORIGIN
+        sync: false

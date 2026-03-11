@@ -278,7 +278,7 @@ Real-world comparison includes the 21,000 base transaction cost that each indivi
 | 10 transfers | 580,080 | 192,238 | 19,224 | **67%** |
 | 20 transfers | 1,160,160 | ~308,000 | ~15,400 | **~73%** |
 
-Batching saves gas at **every** batch size because the 21,000 base transaction cost is paid only once instead of N times. Savings asymptotically approach ~70% as batch size increases.
+Batching saves gas at **every** batch size because the 21,000 base transaction cost is paid only once instead of N times. Savings asymptotically approach ~73% as batch size increases.
 
 ---
 
@@ -338,6 +338,9 @@ cp .env.example .env
 SEPOLIA_RPC_URL=https://rpc.sepolia.org
 DEPLOYER_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
 RELAYER_PRIVATE_KEY=0xYOUR_PRIVATE_KEY
+
+# Etherscan API key (required for --verify during deployment)
+ETHERSCAN_API_KEY=YOUR_ETHERSCAN_API_KEY
 
 # Auto-populated after deployment
 BATCH_EXECUTOR_ADDRESS=

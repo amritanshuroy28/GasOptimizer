@@ -81,6 +81,8 @@ forge script script/Deploy.s.sol:DeployScript \
 node script/post-deploy.js
 ```
 
+> **Note:** The `--verify` flag requires an `ETHERSCAN_API_KEY` environment variable. Set it in your `.env` file or omit `--verify` if not needed.
+
 The deployment will:
 1. Deploy BatchExecutor contract (minBatchSize = 1)
 2. Deploy SampleToken with BatchExecutor as the trusted forwarder
@@ -114,6 +116,7 @@ The server runs on http://localhost:3000
 3. Render auto-detects `render.yaml` and configures the build/start commands
 4. Set these environment variables in the Render dashboard:
    - `SEPOLIA_RPC_URL` — Your Sepolia RPC endpoint
+   - `DEPLOYER_PRIVATE_KEY` — Deployer wallet key (needed for the token faucet)
    - `RELAYER_PRIVATE_KEY` — Relayer wallet private key
    - `BATCH_EXECUTOR_ADDRESS` — From `deployment.json`
    - `SAMPLE_TOKEN_ADDRESS` — From `deployment.json`

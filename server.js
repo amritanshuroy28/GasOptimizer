@@ -89,7 +89,7 @@ function validateRelayRequest(body) {
     }
 
     // Check required fields
-    const requiredFields = ["from", "to", "value", "gas", "nonce", "data"];
+    const requiredFields = ["from", "to", "value", "gas", "nonce", "deadline", "data"];
     for (const field of requiredFields) {
         if (request[field] === undefined || request[field] === null) {
             return `Missing required field: request.${field}`;
