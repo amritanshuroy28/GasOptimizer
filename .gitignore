@@ -25,3 +25,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Design and Skills files
+DESIGN.md
+SKILLS.md
+design.md
+skills.md

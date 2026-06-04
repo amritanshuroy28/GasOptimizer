@@ -3,34 +3,39 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gas Optimizer — Batch & Relay</title>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Sora:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>Gas Optimizer — Batch & Relay Engine</title>
+    <meta name="description" content="Save up to 70% on Ethereum gas fees by batching multiple token transfers into a single optimized transaction. Sign with your wallet, no gas required.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.1/ethers.umd.min.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
 
+<a href="#app" class="sr-only">Skip to main application</a>
+
 <div class="container">
     <!-- Header/Navigation -->
-    <header class="header">
+    <header class="header" role="banner">
         <div class="logo-area">
-            <div class="logo-icon">⚡</div>
+            <div class="logo-icon" aria-hidden="true">⚡</div>
             <div class="logo-text">
                 <h1>Gas Optimizer</h1>
                 <span>Batch & Relay Engine</span>
             </div>
         </div>
-        <nav>
+        <nav aria-label="Main navigation">
             <a href="#features">Features</a>
             <a href="#how-it-works">How It Works</a>
             <a href="#app">App</a>
         </nav>
         <div class="wallet-section">
-            <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark/light mode">
+            <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" aria-label="Toggle dark and light mode">
                 🌙
             </button>
-            <div class="network-badge">
-                <div class="network-dot"></div>
+            <div class="network-badge" role="status" aria-label="Connected network">
+                <div class="network-dot" aria-hidden="true"></div>
                 Sepolia
             </div>
             <button class="connect-btn" id="connectBtn" onclick="toggleWallet()">
@@ -40,9 +45,9 @@
     </header>
 
     <!-- Hero Section -->
-    <section class="hero">
+    <section class="hero" aria-labelledby="hero-heading">
         <div class="hero-label">Web3 Infrastructure</div>
-        <h2 class="hero-title">Save Gas with Batch Transactions</h2>
+        <h2 class="hero-title" id="hero-heading">Save Gas with Batch Transactions</h2>
         <p class="hero-subtitle">
             Combine multiple token transfers into a single optimized transaction. 
             Sign with your wallet—no gas fees required. The relayer handles everything.
@@ -50,29 +55,29 @@
     </section>
 
     <!-- Status Bar -->
-    <div class="status-bar">
+    <div class="status-bar" role="region" aria-label="Wallet status overview">
         <div class="status-card">
             <div class="status-label">Wallet Status</div>
-            <div class="status-value accent" id="walletStatus">Not connected</div>
+            <div class="status-value accent" id="walletStatus" role="status" aria-live="polite">Not connected</div>
         </div>
         <div class="status-card">
             <div class="status-label">Your Nonce</div>
             <div class="status-value" id="nonceStatus">—</div>
-            <button onclick="skipNonce()" title="Skip stuck nonce" style="margin-top:4px;font-size:0.65rem;padding:2px 8px;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-muted);border-radius:4px;">Skip Nonce ↷</button>
+            <button class="status-action-btn" onclick="skipNonce()" aria-label="Skip stuck nonce">Skip Nonce ↷</button>
         </div>
         <div class="status-card">
             <div class="status-label">Token Balance</div>
-            <div class="status-value green" id="balanceStatus">—</div>
-            <button onclick="claimFaucet()" id="faucetBtn" title="Get 100 free SMPL tokens for testing" style="margin-top:4px;font-size:0.65rem;padding:2px 8px;cursor:pointer;border:1px solid var(--border);background:var(--card-bg);color:var(--text-muted);border-radius:4px;">Get Test Tokens</button>
+            <div class="status-value green" id="balanceStatus" role="status" aria-live="polite">—</div>
+            <button class="status-action-btn" onclick="claimFaucet()" id="faucetBtn" aria-label="Get 100 free SMPL tokens for testing">Get Test Tokens</button>
         </div>
         <div class="status-card">
             <div class="status-label">Pending Actions</div>
-            <div class="status-value orange" id="pendingStatus">0</div>
+            <div class="status-value orange" id="pendingStatus" role="status" aria-live="polite">0</div>
         </div>
     </div>
 
     <!-- Step Progress -->
-    <div class="steps">
+    <div class="steps" role="group" aria-label="Transaction progress">
         <div class="step active" id="step1">
             <div class="step-num">01</div>
             <div class="step-label">Connect</div>
@@ -92,9 +97,9 @@
     </div>
 
     <!-- Interactive App Section -->
-    <section id="app" class="section">
-        <div class="section-label" style="text-align: center;">Interactive Application</div>
-        <h2 class="section-title">Start Saving Gas Now</h2>
+    <section id="app" class="section" aria-labelledby="app-heading">
+        <div class="section-label">Interactive Application</div>
+        <h2 class="section-title" id="app-heading">Start Saving Gas Now</h2>
 
         <!-- Action Builder -->
         <div class="action-builder">
@@ -102,11 +107,11 @@
                 <div class="title">Build Your Batch</div>
                 <div class="count" id="actionCount">0 actions</div>
             </div>
-            <div class="action-list" id="actionList">
+            <div class="action-list" id="actionList" role="list">
                 <div class="empty-state">Add your first transfer to get started</div>
             </div>
             <div class="action-builder-footer">
-                <button class="add-btn" onclick="addAction()">+ Add Transfer</button>
+                <button class="add-btn" onclick="addAction()" aria-label="Add a new transfer action">+ Add Transfer</button>
             </div>
         </div>
 
@@ -117,12 +122,12 @@
                     <div class="gas-label">Estimated Gas Savings</div>
                     <div class="gas-comparison">
                         <span class="gas-old" id="gasOld">—</span>
-                        <span class="gas-arrow">→</span>
+                        <span class="gas-arrow" aria-hidden="true">→</span>
                         <span class="gas-new" id="gasNew">—</span>
                         <span class="gas-saving" id="gasSaving" style="display:none"></span>
                     </div>
                 </div>
-                <button class="execute-btn" id="executeBtn" onclick="executeBatch()" disabled>
+                <button class="execute-btn" id="executeBtn" onclick="executeBatch()" disabled aria-label="Sign and relay batch transaction">
                     Sign & Relay Batch
                 </button>
             </div>
@@ -132,9 +137,9 @@
         <div class="log-section">
             <div class="log-header">
                 <div class="log-title">Activity Log</div>
-                <button class="connect-btn" style="padding:0.35rem 0.75rem; font-size:0.7rem;" onclick="clearLog()">Clear</button>
+                <button class="connect-btn" style="padding: 6px 12px; font-size: 12px;" onclick="clearLog()" aria-label="Clear activity log">Clear</button>
             </div>
-            <div class="log-body" id="logBody">
+            <div class="log-body" id="logBody" role="log" aria-live="polite" aria-label="Transaction activity log">
                 <div class="log-entry">
                     <span class="log-time">[--:--:--]</span>
                     <span class="log-info">Waiting for wallet connection...</span>
@@ -143,7 +148,7 @@
         </div>
 
         <!-- Gas Savings Visualization -->
-        <div class="savings-visual" id="savingsVisual">
+        <div class="savings-visual" id="savingsVisual" role="figure" aria-label="Gas savings comparison chart">
             <div class="savings-title">Gas Optimization Results</div>
             <div class="bar-group">
                 <div class="bar-label">
@@ -151,7 +156,7 @@
                     <span id="individualGasLabel">0 gas</span>
                 </div>
                 <div class="bar-track">
-                    <div class="bar-fill individual" id="individualBar" style="width: 0%"></div>
+                    <div class="bar-fill individual" id="individualBar" style="width: 0%" role="progressbar" aria-valuenow="0"></div>
                 </div>
             </div>
             <div class="bar-group">
@@ -160,7 +165,7 @@
                     <span id="batchedGasLabel">0 gas</span>
                 </div>
                 <div class="bar-track">
-                    <div class="bar-fill batched" id="batchedBar" style="width: 0%"></div>
+                    <div class="bar-fill batched" id="batchedBar" style="width: 0%" role="progressbar" aria-valuenow="0"></div>
                 </div>
             </div>
             <div class="savings-summary">
@@ -171,72 +176,78 @@
     </section>
 
     <!-- Features Section -->
-    <section id="features" class="section">
+    <section id="features" class="section" aria-labelledby="features-heading">
         <div class="section-label">Key Benefits</div>
-        <h2 class="section-title">How It Helps You</h2>
+        <h2 class="section-title" id="features-heading">How It Helps You</h2>
         <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">💰</div>
+            <article class="feature-card">
+                <span class="feature-icon" aria-hidden="true">💰</span>
                 <h3>Gas Savings</h3>
                 <p>Save up to 50% on transaction fees by batching multiple transfers into one transaction.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🔐</div>
+            </article>
+            <article class="feature-card">
+                <span class="feature-icon" aria-hidden="true">🔐</span>
                 <h3>Non-Custodial</h3>
                 <p>You sign and approve each action. Your wallet never leaves your control.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">⚡</div>
+            </article>
+            <article class="feature-card">
+                <span class="feature-icon" aria-hidden="true">⚡</span>
                 <h3>Fast & Simple</h3>
                 <p>Build actions, sign once, and let the relayer handle the rest in seconds.</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🛡️</div>
+            </article>
+            <article class="feature-card">
+                <span class="feature-icon" aria-hidden="true">🛡️</span>
                 <h3>Secure</h3>
                 <p>EIP-712 signed messages with smart contract verification ensure maximum security.</p>
-            </div>
+            </article>
         </div>
     </section>
 
     <!-- How It Works Section -->
-    <section id="how-it-works" class="section">
-        <div class="section-label" style="text-align: center;">Technical Deep Dive</div>
-        <h2 class="section-title">How It Works</h2>
+    <section id="how-it-works" class="section" aria-labelledby="how-heading">
+        <div class="section-label">Technical Deep Dive</div>
+        <h2 class="section-title" id="how-heading">How It Works</h2>
 
         <!-- Architecture Flow Diagram -->
-        <div class="arch-diagram">
-            <div style="text-align: center; margin-bottom: 1rem;">
-                <span style="font-family: var(--font-display); font-size: 0.85rem; color: var(--text-primary); font-weight: 600;">System Architecture — End-to-End Transaction Flow</span>
-            </div>
+        <div class="arch-diagram" role="figure" aria-label="System architecture diagram showing end-to-end transaction flow">
+            <div class="arch-diagram-title">System Architecture — End-to-End Transaction Flow</div>
             <div class="arch-flow">
                 <div class="arch-node">
-                    <div class="arch-node-icon">👤</div>
+                    <div class="arch-node-icon" aria-hidden="true">👤</div>
                     <div class="arch-node-title">User Wallet</div>
                     <div class="arch-node-desc">Signs EIP-712 data<br>Zero gas cost</div>
                 </div>
-                <div class="arch-arrow">→</div>
+                <div class="arch-arrow" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </div>
                 <div class="arch-node">
-                    <div class="arch-node-icon">📡</div>
+                    <div class="arch-node-icon" aria-hidden="true">📡</div>
                     <div class="arch-node-title">Relayer Server</div>
                     <div class="arch-node-desc">Queues & batches<br>requests off-chain</div>
                 </div>
-                <div class="arch-arrow">→</div>
+                <div class="arch-arrow" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </div>
                 <div class="arch-node">
-                    <div class="arch-node-icon">📦</div>
+                    <div class="arch-node-icon" aria-hidden="true">📦</div>
                     <div class="arch-node-title">BatchExecutor</div>
                     <div class="arch-node-desc">Verifies sigs &<br>executes on-chain</div>
                 </div>
-                <div class="arch-arrow">→</div>
+                <div class="arch-arrow" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </div>
                 <div class="arch-node">
-                    <div class="arch-node-icon">🪙</div>
+                    <div class="arch-node-icon" aria-hidden="true">🪙</div>
                     <div class="arch-node-title">Target Contract</div>
                     <div class="arch-node-desc">ERC-20 transfers<br>with real sender</div>
                 </div>
             </div>
-            <div style="text-align: center; margin-top: 0.5rem;">
-                <span style="font-size: 1.3rem; color: var(--green);">→</span><br>
-                <div class="arch-node" style="display: inline-block; margin-top: 0.5rem; border-color: var(--green);">
-                    <div class="arch-node-icon">💰</div>
+            <div class="arch-sponsor-link">
+                <div class="arch-arrow" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:24px;height:24px;color:var(--green);transform:rotate(90deg)"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </div>
+                <div class="arch-node">
+                    <div class="arch-node-icon" aria-hidden="true">💰</div>
                     <div class="arch-node-title">GasSponsor Pool</div>
                     <div class="arch-node-desc">Reimburses relayer<br>with constraints</div>
                 </div>
@@ -246,37 +257,37 @@
         <!-- Step-by-Step Process -->
         <div class="how-steps">
             <div class="how-step">
-                <div class="how-step-num">1</div>
+                <div class="how-step-num" aria-hidden="true">1</div>
                 <h4>Connect Wallet</h4>
                 <p>User connects MetaMask to the Sepolia testnet. The dApp reads their nonce and token balance from the blockchain.</p>
                 <span class="gas-tag free">Gas: 0 (read-only)</span>
             </div>
             <div class="how-step">
-                <div class="how-step-num">2</div>
+                <div class="how-step-num" aria-hidden="true">2</div>
                 <h4>Build Actions</h4>
                 <p>User defines N token transfers (recipient + amount). Actions are composed entirely in the browser — nothing touches the chain yet.</p>
                 <span class="gas-tag free">Gas: 0 (off-chain)</span>
             </div>
             <div class="how-step">
-                <div class="how-step-num">3</div>
+                <div class="how-step-num" aria-hidden="true">3</div>
                 <h4>Sign via EIP-712</h4>
                 <p>Each action is wrapped in a ForwardRequest struct and signed with EIP-712 typed data. MetaMask shows human-readable details. Signature binds to contract + chain.</p>
                 <span class="gas-tag free">Gas: 0 (signature only)</span>
             </div>
             <div class="how-step">
-                <div class="how-step-num">4</div>
+                <div class="how-step-num" aria-hidden="true">4</div>
                 <h4>Submit to Relayer</h4>
                 <p>Signed requests are sent to the relayer server via POST /api/relay. The relayer verifies each signature before queuing.</p>
                 <span class="gas-tag free">Gas: 0 (HTTP request)</span>
             </div>
             <div class="how-step">
-                <div class="how-step-num">5</div>
+                <div class="how-step-num" aria-hidden="true">5</div>
                 <h4>Batch Execution</h4>
                 <p>Relayer submits all requests in a single executeBatch() call. One base cost (21,000 gas) instead of N. Each sub-call verified and executed atomically.</p>
                 <span class="gas-tag paid">Gas: 21K + N×13K (relayer pays)</span>
             </div>
             <div class="how-step">
-                <div class="how-step-num">6</div>
+                <div class="how-step-num" aria-hidden="true">6</div>
                 <h4>Gas Reimbursement</h4>
                 <p>If a GasSponsor pool is funded, the relayer claims reimbursement. 6-layer constraint system prevents abuse (per-claim, per-user, per-relayer, global, balance, pause).</p>
                 <span class="gas-tag sponsored">Gas: Sponsored by pool</span>
@@ -326,7 +337,7 @@
         <!-- Gas Savings Table -->
         <div class="gas-math">
             <div class="gas-math-title">📊 Gas Optimization Analysis</div>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem; font-family: var(--font-display); line-height: 1.6;">
+            <p class="gas-math-desc">
                 Every Ethereum transaction pays a <strong>21,000 gas base cost</strong>. Batching amortizes this across N operations.
                 Measured with <code>forge test --gas-report</code>. Individual cost includes the 21K base per transaction.
             </p>
@@ -351,47 +362,47 @@
         </div>
 
         <!-- Security Section -->
-        <div style="margin-top: 3rem;">
-            <div class="section-label" style="text-align: center;">Trust Model</div>
-            <h3 style="text-align: center; font-size: 1.5rem; margin-bottom: 2rem;">Security & Trust Guarantees</h3>
+        <div class="section" role="region" aria-labelledby="security-heading">
+            <div class="security-section-label">Trust Model</div>
+            <h3 class="security-section-title" id="security-heading">Security & Trust Guarantees</h3>
             <div class="security-grid">
                 <div class="security-item">
-                    <div class="security-icon">🛡️</div>
+                    <div class="security-icon" aria-hidden="true">🛡️</div>
                     <div>
                         <h5>Replay Protection</h5>
                         <p>Sequential nonces + EIP-712 domain binding (chainId + contract address) make every signature globally unique.</p>
                     </div>
                 </div>
                 <div class="security-item">
-                    <div class="security-icon">🔒</div>
+                    <div class="security-icon" aria-hidden="true">🔒</div>
                     <div>
                         <h5>Non-Custodial</h5>
                         <p>The relayer never holds user keys or funds. It can only execute exactly what the user signed — nothing more.</p>
                     </div>
                 </div>
                 <div class="security-item">
-                    <div class="security-icon">🚫</div>
+                    <div class="security-icon" aria-hidden="true">🚫</div>
                     <div>
                         <h5>Anti-Griefing</h5>
                         <p>Each sub-call has its own gas limit. One failing action cannot consume the entire batch's gas budget.</p>
                     </div>
                 </div>
                 <div class="security-item">
-                    <div class="security-icon">🔄</div>
+                    <div class="security-icon" aria-hidden="true">🔄</div>
                     <div>
                         <h5>Censorship Resistant</h5>
                         <p>If the relayer is down, users can call executeBatch() directly on the contract, paying their own gas.</p>
                     </div>
                 </div>
                 <div class="security-item">
-                    <div class="security-icon">🏦</div>
+                    <div class="security-icon" aria-hidden="true">🏦</div>
                     <div>
                         <h5>Pool Safety</h5>
                         <p>6-layer constraint system on GasSponsor prevents drain attacks even with compromised relayer keys.</p>
                     </div>
                 </div>
                 <div class="security-item">
-                    <div class="security-icon">⏸️</div>
+                    <div class="security-icon" aria-hidden="true">⏸️</div>
                     <div>
                         <h5>Emergency Controls</h5>
                         <p>Owner can pause the sponsor pool and withdraw funds instantly via emergencyWithdraw().</p>
@@ -402,24 +413,24 @@
     </section>
 
     <!-- Footer -->
-    <footer class="footer">
+    <footer class="footer" role="contentinfo">
         <div class="footer-content">
             <div class="footer-col">
                 <h4>Product</h4>
                 <a href="#features">Features</a>
                 <a href="#how-it-works">Architecture</a>
-                <a href="https://github.com/amritanshuroy28/batch-relay-dapp" target="_blank">GitHub</a>
+                <a href="https://github.com/amritanshuroy28/batch-relay-dapp" target="_blank" rel="noopener noreferrer">GitHub</a>
             </div>
             <div class="footer-col">
                 <h4>Resources</h4>
-                <a href="https://github.com/amritanshuroy28/batch-relay-dapp/blob/main/ARCHITECTURE.md" target="_blank">Architecture Doc</a>
-                <a href="https://eips.ethereum.org/EIPS/eip-712" target="_blank">EIP-712 Spec</a>
-                <a href="https://eips.ethereum.org/EIPS/eip-2771" target="_blank">ERC-2771 Spec</a>
+                <a href="https://github.com/amritanshuroy28/batch-relay-dapp/blob/main/ARCHITECTURE.md" target="_blank" rel="noopener noreferrer">Architecture Doc</a>
+                <a href="https://eips.ethereum.org/EIPS/eip-712" target="_blank" rel="noopener noreferrer">EIP-712 Spec</a>
+                <a href="https://eips.ethereum.org/EIPS/eip-2771" target="_blank" rel="noopener noreferrer">ERC-2771 Spec</a>
             </div>
         </div>
         <div class="footer-bottom">
             <p>Built for Web3Assam — Gas Fee Optimizer & Batch Transaction System</p>
-            <p style="margin-top: 0.5rem; color: var(--text-muted);">© 2026 Gas Optimizer — Batch & Relay Engine. Sepolia Testnet.</p>
+            <p>© 2026 Gas Optimizer — Batch & Relay Engine. Sepolia Testnet.</p>
         </div>
     </footer>
 </div>
